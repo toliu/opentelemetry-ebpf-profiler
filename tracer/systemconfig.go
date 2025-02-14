@@ -87,7 +87,31 @@ func parseBTF(syscfg *C.SystemConfig) error {
 	var taskStruct *btf.Struct
 	err = spec.TypeByName("task_struct", &taskStruct)
 	if err != nil {
-		return err
+		if !errors.Is(err, btf.ErrMultipleMatches) {
+			return err
+		}
+		var typs []btf.Type
+		if typs, err = spec.AnyTypesByName("task_struct"); err != nil {
+			return err
+		}
+		record := make(map[string]uint)
+		for _, typ := range typs {
+			var stack, tpbase uint
+			if stack, err = calculateFieldOffset(typ, "stack"); err != nil {
+				continue
+			} else if tpbase, err = calculateFieldOffset(typ, getTSDBaseFieldSpec()); err != nil {
+				continue
+			}
+			if val, ok := record["stack"]; ok && stack != val {
+				return fmt.Errorf("stack offset(%d, %d): %s", stack, val, btf.ErrMultipleMatches)
+			} else if val, ok = record["tpbase"]; ok && tpbase != val {
+				return fmt.Errorf("tpbase offset(%d, %d): %s", tpbase, val, btf.ErrMultipleMatches)
+			}
+			taskStruct = typ.(*btf.Struct)
+		}
+		if taskStruct == nil {
+			return fmt.Errorf("multiple illegal match")
+		}
 	}
 
 	stackOffset, err := calculateFieldOffset(taskStruct, "stack")

@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package process // import "go.opentelemetry.io/ebpf-profiler/process"
+package process // import "github.com/toliu/opentelemetry-ebpf-profiler/process"
 
 import (
 	"fmt"
@@ -12,8 +12,8 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	"go.opentelemetry.io/ebpf-profiler/remotememory"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/remotememory"
 )
 
 type ptraceProcess struct {

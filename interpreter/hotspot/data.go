@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package hotspot // import "go.opentelemetry.io/ebpf-profiler/interpreter/hotspot"
+package hotspot // import "github.com/toliu/opentelemetry-ebpf-profiler/interpreter/hotspot"
 
 import (
 	"bytes"
@@ -16,13 +16,13 @@ import (
 
 	"github.com/elastic/go-freelru"
 
-	"go.opentelemetry.io/ebpf-profiler/interpreter"
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	"go.opentelemetry.io/ebpf-profiler/libpf/pfelf"
-	"go.opentelemetry.io/ebpf-profiler/libpf/xsync"
-	"go.opentelemetry.io/ebpf-profiler/lpm"
-	npsr "go.opentelemetry.io/ebpf-profiler/nopanicslicereader"
-	"go.opentelemetry.io/ebpf-profiler/remotememory"
+	"github.com/toliu/opentelemetry-ebpf-profiler/interpreter"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/pfelf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/xsync"
+	"github.com/toliu/opentelemetry-ebpf-profiler/lpm"
+	npsr "github.com/toliu/opentelemetry-ebpf-profiler/nopanicslicereader"
+	"github.com/toliu/opentelemetry-ebpf-profiler/remotememory"
 )
 
 // hotspotIntrospectionTable contains the resolved ELF symbols for an introspection table

@@ -18,9 +18,9 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 	log "github.com/sirupsen/logrus"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf/pfelf"
-	"go.opentelemetry.io/ebpf-profiler/process"
-	"go.opentelemetry.io/ebpf-profiler/tools/coredump/modulestore"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/pfelf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/process"
+	"github.com/toliu/opentelemetry-ebpf-profiler/tools/coredump/modulestore"
 )
 
 type gdbCmd struct {
@@ -78,7 +78,7 @@ func (cmd *gdbCmd) exec(context.Context, []string) (err error) {
 
 		// Unpack file if not already done previously.
 		if _, err = os.Stat(dest); err != nil {
-			log.Infof("Unpacking %v", dest)
+			log.Tracef("Unpacking %v", dest)
 			if err = os.MkdirAll(path.Dir(dest), 0o755); err != nil {
 				return fmt.Errorf("failed to create directory for %v: %v", dest, err)
 			}
@@ -128,7 +128,7 @@ func (cmd *gdbCmd) exec(context.Context, []string) (err error) {
 			continue // assume exists
 		}
 
-		log.Infof("Mapping DSO %v -> %v", soName, dsoPath)
+		log.Tracef("Mapping DSO %v -> %v", soName, dsoPath)
 		if err = os.Symlink(dsoAbsPath, linkPath); err != nil {
 			return fmt.Errorf("failed to symlink: %v", err)
 		}

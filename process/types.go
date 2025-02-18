@@ -3,17 +3,17 @@
 
 // This file defines the interface to access a Process state.
 
-package process // import "go.opentelemetry.io/ebpf-profiler/process"
+package process // import "github.com/toliu/opentelemetry-ebpf-profiler/process"
 
 import (
 	"debug/elf"
 	"io"
 	"strings"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	"go.opentelemetry.io/ebpf-profiler/libpf/pfelf"
-	"go.opentelemetry.io/ebpf-profiler/remotememory"
-	"go.opentelemetry.io/ebpf-profiler/util"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/pfelf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/remotememory"
+	"github.com/toliu/opentelemetry-ebpf-profiler/util"
 )
 
 // VdsoPathName is the path to use for VDSO mappings

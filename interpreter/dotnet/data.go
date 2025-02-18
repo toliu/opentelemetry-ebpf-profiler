@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package dotnet // import "go.opentelemetry.io/ebpf-profiler/interpreter/dotnet"
+package dotnet // import "github.com/toliu/opentelemetry-ebpf-profiler/interpreter/dotnet"
 
 import (
 	"fmt"
@@ -11,9 +11,9 @@ import (
 
 	"github.com/elastic/go-freelru"
 
-	"go.opentelemetry.io/ebpf-profiler/interpreter"
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	"go.opentelemetry.io/ebpf-profiler/remotememory"
+	"github.com/toliu/opentelemetry-ebpf-profiler/interpreter"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/remotememory"
 )
 
 // #include "../../support/ebpf/types.h"

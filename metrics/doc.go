@@ -18,4 +18,4 @@ The current directory structure looks like
 	├── metrics.json    // list of known metrics
 	└── types.go        // definitions of Metric, MetricID, MetricValue
 */
-package metrics // import "go.opentelemetry.io/ebpf-profiler/metrics"
+package metrics // import "github.com/toliu/opentelemetry-ebpf-profiler/metrics"

@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package reporter // import "go.opentelemetry.io/ebpf-profiler/reporter"
+package reporter // import "github.com/toliu/opentelemetry-ebpf-profiler/reporter"
 
 import "github.com/zeebo/xxh3"
 

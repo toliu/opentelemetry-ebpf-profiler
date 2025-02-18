@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // lpm package provides helpers for calculating prefix lists from ranges
-package lpm // import "go.opentelemetry.io/ebpf-profiler/lpm"
+package lpm // import "github.com/toliu/opentelemetry-ebpf-profiler/lpm"
 
 import (
 	"fmt"

@@ -1,14 +1,14 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package pdata // import "go.opentelemetry.io/ebpf-profiler/reporter/internal/pdata"
+package pdata // import "github.com/toliu/opentelemetry-ebpf-profiler/reporter/internal/pdata"
 
 import (
 	lru "github.com/elastic/go-freelru"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	"go.opentelemetry.io/ebpf-profiler/libpf/xsync"
-	"go.opentelemetry.io/ebpf-profiler/reporter/samples"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/xsync"
+	"github.com/toliu/opentelemetry-ebpf-profiler/reporter/samples"
 )
 
 // Pdata holds the cache for the data used to generate the events reporters

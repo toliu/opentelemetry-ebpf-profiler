@@ -5,7 +5,7 @@
 // libraries, establishes socket connections with them and notifies them about
 // the stack traces that we collected for their process. This allows the APM
 // agent to associate stack traces with APM traces / transactions / spans.
-package apmint // import "go.opentelemetry.io/ebpf-profiler/interpreter/apmint"
+package apmint // import "github.com/toliu/opentelemetry-ebpf-profiler/interpreter/apmint"
 
 import (
 	"encoding/hex"
@@ -16,11 +16,11 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"go.opentelemetry.io/ebpf-profiler/host"
-	"go.opentelemetry.io/ebpf-profiler/interpreter"
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	"go.opentelemetry.io/ebpf-profiler/libpf/pfelf"
-	"go.opentelemetry.io/ebpf-profiler/remotememory"
+	"github.com/toliu/opentelemetry-ebpf-profiler/host"
+	"github.com/toliu/opentelemetry-ebpf-profiler/interpreter"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/pfelf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/remotememory"
 )
 
 // #include <stdlib.h>

@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package types // import "go.opentelemetry.io/ebpf-profiler/tracer/types"
+package types // import "github.com/toliu/opentelemetry-ebpf-profiler/tracer/types"
 
 import (
 	"fmt"
@@ -151,7 +151,7 @@ func Parse(tracers string) (IncludedTracers, error) {
 
 	if tracersEnabled := result.String(); tracersEnabled != "" {
 		log.Debugf("Tracer string: %v", tracers)
-		log.Infof("Interpreter tracers: %v", tracersEnabled)
+		log.Tracef("Interpreter tracers: %v", tracersEnabled)
 	}
 
 	return result, nil

@@ -4,12 +4,12 @@
 // nopanicslicereader provides little convenience utilities to read "native" endian
 // values from a slice at given offset. Zeroes are returned on out of bounds access
 // instead of panic.
-package nopanicslicereader // import "go.opentelemetry.io/ebpf-profiler/nopanicslicereader"
+package nopanicslicereader // import "github.com/toliu/opentelemetry-ebpf-profiler/nopanicslicereader"
 
 import (
 	"encoding/binary"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
 )
 
 // Uint8 reads one 8-bit unsigned integer from given byte slice offset

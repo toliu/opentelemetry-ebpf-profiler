@@ -6,9 +6,9 @@ package main
 import (
 	"unsafe"
 
-	"go.opentelemetry.io/ebpf-profiler/host"
-	"go.opentelemetry.io/ebpf-profiler/process"
-	"go.opentelemetry.io/ebpf-profiler/remotememory"
+	"github.com/toliu/opentelemetry-ebpf-profiler/host"
+	"github.com/toliu/opentelemetry-ebpf-profiler/process"
+	"github.com/toliu/opentelemetry-ebpf-profiler/remotememory"
 )
 
 /*

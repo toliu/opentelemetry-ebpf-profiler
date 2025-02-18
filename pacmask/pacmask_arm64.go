@@ -3,7 +3,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package pacmask // import "go.opentelemetry.io/ebpf-profiler/pacmask"
+package pacmask // import "github.com/toliu/opentelemetry-ebpf-profiler/pacmask"
 
 import (
 	"math/rand/v2"

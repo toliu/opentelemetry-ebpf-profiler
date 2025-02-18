@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package tracer // import "go.opentelemetry.io/ebpf-profiler/tracer"
+package tracer // import "github.com/toliu/opentelemetry-ebpf-profiler/tracer"
 
 import (
 	"encoding/binary"
@@ -12,16 +12,16 @@ import (
 	"strings"
 	"unsafe"
 
-	"go.opentelemetry.io/ebpf-profiler/rlimit"
-	"go.opentelemetry.io/ebpf-profiler/tracer/types"
+	"github.com/toliu/opentelemetry-ebpf-profiler/rlimit"
+	"github.com/toliu/opentelemetry-ebpf-profiler/tracer/types"
 
 	cebpf "github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/btf"
 	"github.com/cilium/ebpf/link"
 	log "github.com/sirupsen/logrus"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	"go.opentelemetry.io/ebpf-profiler/pacmask"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/pacmask"
 )
 
 // #include "../support/ebpf/types.h"
@@ -254,7 +254,7 @@ func loadSystemConfig(coll *cebpf.CollectionSpec, maps map[string]*cebpf.Map,
 	offCPUThreshold uint32, filterErrorFrames bool) error {
 	pacMask := pacmask.GetPACMask()
 	if pacMask != 0 {
-		log.Infof("Determined PAC mask to be 0x%016X", pacMask)
+		log.Tracef("Determined PAC mask to be 0x%016X", pacMask)
 	} else {
 		log.Debug("PAC is not enabled on the system.")
 	}
@@ -265,7 +265,7 @@ func loadSystemConfig(coll *cebpf.CollectionSpec, maps map[string]*cebpf.Map,
 	}
 
 	if err := parseBTF(&syscfg); err != nil {
-		log.Infof("Using binary analysis (BTF not available: %s)", err)
+		log.Tracef("Using binary analysis (BTF not available: %s)", err)
 
 		if err = determineStackLayout(coll, maps, &syscfg); err != nil {
 			return err
@@ -289,7 +289,7 @@ func loadSystemConfig(coll *cebpf.CollectionSpec, maps map[string]*cebpf.Map,
 		}
 	}
 
-	log.Infof("Found offsets: task stack %#x, pt_regs %#x, tpbase %#x",
+	log.Tracef("Found offsets: task stack %#x, pt_regs %#x, tpbase %#x",
 		syscfg.task_stack_offset,
 		syscfg.stack_ptregs_offset,
 		syscfg.tpbase_offset)

@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package internal // import "go.opentelemetry.io/ebpf-profiler/collector/internal"
+package internal // import "github.com/toliu/opentelemetry-ebpf-profiler/collector/internal"
 
 import (
 	"context"
@@ -9,9 +9,9 @@ import (
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer/xconsumer"
 
-	"go.opentelemetry.io/ebpf-profiler/internal/controller"
-	"go.opentelemetry.io/ebpf-profiler/reporter"
-	"go.opentelemetry.io/ebpf-profiler/times"
+	"github.com/toliu/opentelemetry-ebpf-profiler/internal/controller"
+	"github.com/toliu/opentelemetry-ebpf-profiler/reporter"
+	"github.com/toliu/opentelemetry-ebpf-profiler/times"
 )
 
 // Controller is a bridge between the Collector's [receiverprofiles.Profiles]

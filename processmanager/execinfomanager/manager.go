@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package execinfomanager // import "go.opentelemetry.io/ebpf-profiler/processmanager/execinfomanager"
+package execinfomanager // import "github.com/toliu/opentelemetry-ebpf-profiler/processmanager/execinfomanager"
 
 import (
 	"errors"
@@ -10,30 +10,30 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	"go.opentelemetry.io/ebpf-profiler/tracer/types"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/tracer/types"
 
 	lru "github.com/elastic/go-freelru"
 
-	"go.opentelemetry.io/ebpf-profiler/host"
-	"go.opentelemetry.io/ebpf-profiler/interpreter"
-	"go.opentelemetry.io/ebpf-profiler/interpreter/apmint"
-	"go.opentelemetry.io/ebpf-profiler/interpreter/dotnet"
-	"go.opentelemetry.io/ebpf-profiler/interpreter/hotspot"
-	"go.opentelemetry.io/ebpf-profiler/interpreter/nodev8"
-	"go.opentelemetry.io/ebpf-profiler/interpreter/perl"
-	"go.opentelemetry.io/ebpf-profiler/interpreter/php"
-	"go.opentelemetry.io/ebpf-profiler/interpreter/python"
-	"go.opentelemetry.io/ebpf-profiler/interpreter/ruby"
-	"go.opentelemetry.io/ebpf-profiler/libpf/pfelf"
-	"go.opentelemetry.io/ebpf-profiler/libpf/xsync"
-	"go.opentelemetry.io/ebpf-profiler/metrics"
-	"go.opentelemetry.io/ebpf-profiler/nativeunwind"
-	sdtypes "go.opentelemetry.io/ebpf-profiler/nativeunwind/stackdeltatypes"
-	pmebpf "go.opentelemetry.io/ebpf-profiler/processmanager/ebpf"
-	"go.opentelemetry.io/ebpf-profiler/support"
-	"go.opentelemetry.io/ebpf-profiler/tpbase"
-	"go.opentelemetry.io/ebpf-profiler/util"
+	"github.com/toliu/opentelemetry-ebpf-profiler/host"
+	"github.com/toliu/opentelemetry-ebpf-profiler/interpreter"
+	"github.com/toliu/opentelemetry-ebpf-profiler/interpreter/apmint"
+	"github.com/toliu/opentelemetry-ebpf-profiler/interpreter/dotnet"
+	"github.com/toliu/opentelemetry-ebpf-profiler/interpreter/hotspot"
+	"github.com/toliu/opentelemetry-ebpf-profiler/interpreter/nodev8"
+	"github.com/toliu/opentelemetry-ebpf-profiler/interpreter/perl"
+	"github.com/toliu/opentelemetry-ebpf-profiler/interpreter/php"
+	"github.com/toliu/opentelemetry-ebpf-profiler/interpreter/python"
+	"github.com/toliu/opentelemetry-ebpf-profiler/interpreter/ruby"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/pfelf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/xsync"
+	"github.com/toliu/opentelemetry-ebpf-profiler/metrics"
+	"github.com/toliu/opentelemetry-ebpf-profiler/nativeunwind"
+	sdtypes "github.com/toliu/opentelemetry-ebpf-profiler/nativeunwind/stackdeltatypes"
+	pmebpf "github.com/toliu/opentelemetry-ebpf-profiler/processmanager/ebpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/support"
+	"github.com/toliu/opentelemetry-ebpf-profiler/tpbase"
+	"github.com/toliu/opentelemetry-ebpf-profiler/util"
 )
 
 const (

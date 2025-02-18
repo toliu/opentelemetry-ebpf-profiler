@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package elfunwindinfo // import "go.opentelemetry.io/ebpf-profiler/nativeunwind/elfunwindinfo"
+package elfunwindinfo // import "github.com/toliu/opentelemetry-ebpf-profiler/nativeunwind/elfunwindinfo"
 
 import (
 	"errors"
@@ -9,10 +9,10 @@ import (
 	"os"
 	"sync/atomic"
 
-	"go.opentelemetry.io/ebpf-profiler/host"
-	"go.opentelemetry.io/ebpf-profiler/libpf/pfelf"
-	"go.opentelemetry.io/ebpf-profiler/nativeunwind"
-	sdtypes "go.opentelemetry.io/ebpf-profiler/nativeunwind/stackdeltatypes"
+	"github.com/toliu/opentelemetry-ebpf-profiler/host"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/pfelf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/nativeunwind"
+	sdtypes "github.com/toliu/opentelemetry-ebpf-profiler/nativeunwind/stackdeltatypes"
 )
 
 // ELFStackDeltaProvider extracts stack deltas from ELF executables available

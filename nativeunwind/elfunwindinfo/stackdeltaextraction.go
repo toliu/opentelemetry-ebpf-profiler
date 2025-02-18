@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package elfunwindinfo // import "go.opentelemetry.io/ebpf-profiler/nativeunwind/elfunwindinfo"
+package elfunwindinfo // import "github.com/toliu/opentelemetry-ebpf-profiler/nativeunwind/elfunwindinfo"
 
 import (
 	"debug/elf"
@@ -9,8 +9,8 @@ import (
 	"sort"
 	"strings"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf/pfelf"
-	sdtypes "go.opentelemetry.io/ebpf-profiler/nativeunwind/stackdeltatypes"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/pfelf"
+	sdtypes "github.com/toliu/opentelemetry-ebpf-profiler/nativeunwind/stackdeltatypes"
 )
 
 const (

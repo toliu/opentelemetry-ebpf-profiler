@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package hotspot // import "go.opentelemetry.io/ebpf-profiler/interpreter/hotspot"
+package hotspot // import "github.com/toliu/opentelemetry-ebpf-profiler/interpreter/hotspot"
 
 import (
 	"encoding/binary"
@@ -10,10 +10,10 @@ import (
 	"sort"
 	"strings"
 
-	"go.opentelemetry.io/ebpf-profiler/armhelpers"
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	"go.opentelemetry.io/ebpf-profiler/remotememory"
-	"go.opentelemetry.io/ebpf-profiler/support"
+	"github.com/toliu/opentelemetry-ebpf-profiler/armhelpers"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/remotememory"
+	"github.com/toliu/opentelemetry-ebpf-profiler/support"
 	aa "golang.org/x/arch/arm64/arm64asm"
 
 	log "github.com/sirupsen/logrus"

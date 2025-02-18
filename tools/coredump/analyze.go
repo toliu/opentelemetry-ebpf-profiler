@@ -16,9 +16,9 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 	log "github.com/sirupsen/logrus"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	"go.opentelemetry.io/ebpf-profiler/process"
-	"go.opentelemetry.io/ebpf-profiler/tools/coredump/modulestore"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/process"
+	"github.com/toliu/opentelemetry-ebpf-profiler/tools/coredump/modulestore"
 )
 
 type analyzeCmd struct {

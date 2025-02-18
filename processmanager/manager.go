@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package processmanager manages the loading and unloading of information related to processes.
-package processmanager // import "go.opentelemetry.io/ebpf-profiler/processmanager"
+package processmanager // import "github.com/toliu/opentelemetry-ebpf-profiler/processmanager"
 
 import (
 	"context"
@@ -13,23 +13,23 @@ import (
 	lru "github.com/elastic/go-freelru"
 	log "github.com/sirupsen/logrus"
 
-	"go.opentelemetry.io/ebpf-profiler/tracer/types"
+	"github.com/toliu/opentelemetry-ebpf-profiler/tracer/types"
 
-	"go.opentelemetry.io/ebpf-profiler/host"
-	"go.opentelemetry.io/ebpf-profiler/interpreter"
-	"go.opentelemetry.io/ebpf-profiler/interpreter/apmint"
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	"go.opentelemetry.io/ebpf-profiler/lpm"
-	"go.opentelemetry.io/ebpf-profiler/metrics"
-	"go.opentelemetry.io/ebpf-profiler/nativeunwind"
-	sdtypes "go.opentelemetry.io/ebpf-profiler/nativeunwind/stackdeltatypes"
-	"go.opentelemetry.io/ebpf-profiler/periodiccaller"
-	pmebpf "go.opentelemetry.io/ebpf-profiler/processmanager/ebpf"
-	eim "go.opentelemetry.io/ebpf-profiler/processmanager/execinfomanager"
-	"go.opentelemetry.io/ebpf-profiler/reporter"
-	"go.opentelemetry.io/ebpf-profiler/times"
-	"go.opentelemetry.io/ebpf-profiler/traceutil"
-	"go.opentelemetry.io/ebpf-profiler/util"
+	"github.com/toliu/opentelemetry-ebpf-profiler/host"
+	"github.com/toliu/opentelemetry-ebpf-profiler/interpreter"
+	"github.com/toliu/opentelemetry-ebpf-profiler/interpreter/apmint"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/lpm"
+	"github.com/toliu/opentelemetry-ebpf-profiler/metrics"
+	"github.com/toliu/opentelemetry-ebpf-profiler/nativeunwind"
+	sdtypes "github.com/toliu/opentelemetry-ebpf-profiler/nativeunwind/stackdeltatypes"
+	"github.com/toliu/opentelemetry-ebpf-profiler/periodiccaller"
+	pmebpf "github.com/toliu/opentelemetry-ebpf-profiler/processmanager/ebpf"
+	eim "github.com/toliu/opentelemetry-ebpf-profiler/processmanager/execinfomanager"
+	"github.com/toliu/opentelemetry-ebpf-profiler/reporter"
+	"github.com/toliu/opentelemetry-ebpf-profiler/times"
+	"github.com/toliu/opentelemetry-ebpf-profiler/traceutil"
+	"github.com/toliu/opentelemetry-ebpf-profiler/util"
 )
 
 const (

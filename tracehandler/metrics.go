@@ -1,9 +1,9 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package tracehandler // import "go.opentelemetry.io/ebpf-profiler/tracehandler"
+package tracehandler // import "github.com/toliu/opentelemetry-ebpf-profiler/tracehandler"
 
-import "go.opentelemetry.io/ebpf-profiler/metrics"
+import "github.com/toliu/opentelemetry-ebpf-profiler/metrics"
 
 func (m *traceHandler) collectMetrics() {
 	metrics.AddSlice([]metrics.Metric{

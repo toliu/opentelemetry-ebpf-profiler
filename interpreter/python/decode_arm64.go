@@ -3,10 +3,10 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package python // import "go.opentelemetry.io/ebpf-profiler/interpreter/python"
+package python // import "github.com/toliu/opentelemetry-ebpf-profiler/interpreter/python"
 
 import (
-	"go.opentelemetry.io/ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
 )
 
 func decodeStubArgumentWrapper(code []byte, argNumber uint8, symbolValue,

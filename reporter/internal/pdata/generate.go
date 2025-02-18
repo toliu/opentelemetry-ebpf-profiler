@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package pdata // import "go.opentelemetry.io/ebpf-profiler/reporter/internal/pdata"
+package pdata // import "github.com/toliu/opentelemetry-ebpf-profiler/reporter/internal/pdata"
 
 import (
 	"crypto/rand"
@@ -13,9 +13,9 @@ import (
 	"go.opentelemetry.io/collector/pdata/pprofile"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	"go.opentelemetry.io/ebpf-profiler/reporter/samples"
-	"go.opentelemetry.io/ebpf-profiler/support"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/reporter/samples"
+	"github.com/toliu/opentelemetry-ebpf-profiler/support"
 )
 
 const (

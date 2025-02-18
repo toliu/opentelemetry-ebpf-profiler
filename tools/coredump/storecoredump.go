@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"os"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf/pfelf"
-	"go.opentelemetry.io/ebpf-profiler/process"
-	"go.opentelemetry.io/ebpf-profiler/tools/coredump/modulestore"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/pfelf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/process"
+	"github.com/toliu/opentelemetry-ebpf-profiler/tools/coredump/modulestore"
 
 	log "github.com/sirupsen/logrus"
 )

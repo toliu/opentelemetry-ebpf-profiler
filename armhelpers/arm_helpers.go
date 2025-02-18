@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // This package contains a series of helper functions that are useful for ARM disassembly.
-package armhelpers // import "go.opentelemetry.io/ebpf-profiler/armhelpers"
+package armhelpers // import "github.com/toliu/opentelemetry-ebpf-profiler/armhelpers"
 
 import (
 	"fmt"
 	"strconv"
 	"strings"
 
-	"go.opentelemetry.io/ebpf-profiler/stringutil"
+	"github.com/toliu/opentelemetry-ebpf-profiler/stringutil"
 	aa "golang.org/x/arch/arm64/arm64asm"
 )
 

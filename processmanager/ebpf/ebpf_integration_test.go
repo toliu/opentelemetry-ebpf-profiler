@@ -13,10 +13,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	"go.opentelemetry.io/ebpf-profiler/lpm"
-	"go.opentelemetry.io/ebpf-profiler/rlimit"
-	"go.opentelemetry.io/ebpf-profiler/support"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/lpm"
+	"github.com/toliu/opentelemetry-ebpf-profiler/rlimit"
+	"github.com/toliu/opentelemetry-ebpf-profiler/support"
 )
 
 func loadTracers(t *testing.T) *ebpfMapsImpl {

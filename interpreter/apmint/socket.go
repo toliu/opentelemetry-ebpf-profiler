@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package apmint // import "go.opentelemetry.io/ebpf-profiler/interpreter/apmint"
+package apmint // import "github.com/toliu/opentelemetry-ebpf-profiler/interpreter/apmint"
 
 import (
 	"bufio"
@@ -18,9 +18,9 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	"go.opentelemetry.io/ebpf-profiler/libpf/xsync"
-	"go.opentelemetry.io/ebpf-profiler/stringutil"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/xsync"
+	"github.com/toliu/opentelemetry-ebpf-profiler/stringutil"
 )
 
 // sendSocket is the shared, unbound socket that we use for communication with

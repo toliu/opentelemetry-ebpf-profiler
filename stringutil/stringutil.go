@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package stringutil // import "go.opentelemetry.io/ebpf-profiler/stringutil"
+package stringutil // import "github.com/toliu/opentelemetry-ebpf-profiler/stringutil"
 
 import (
 	"strings"

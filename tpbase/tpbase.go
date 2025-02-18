@@ -7,7 +7,7 @@
 // relative to the 'struct task_struct'. This is needed to support Thread Local
 // Storage access in eBPF.
 
-package tpbase // import "go.opentelemetry.io/ebpf-profiler/tpbase"
+package tpbase // import "github.com/toliu/opentelemetry-ebpf-profiler/tpbase"
 
 type Analyzer struct {
 	// FunctionName is the kernel function which can be analyzed

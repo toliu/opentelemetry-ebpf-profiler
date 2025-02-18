@@ -1,13 +1,13 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package libpf // import "go.opentelemetry.io/ebpf-profiler/libpf"
+package libpf // import "github.com/toliu/opentelemetry-ebpf-profiler/libpf"
 
 import (
 	"encoding"
 	"encoding/base64"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf/basehash"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/basehash"
 )
 
 // TraceHash represents the unique hash of a trace

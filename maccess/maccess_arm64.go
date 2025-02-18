@@ -3,12 +3,12 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package maccess // import "go.opentelemetry.io/ebpf-profiler/maccess"
+package maccess // import "github.com/toliu/opentelemetry-ebpf-profiler/maccess"
 
 import (
 	"errors"
 
-	ah "go.opentelemetry.io/ebpf-profiler/armhelpers"
+	ah "github.com/toliu/opentelemetry-ebpf-profiler/armhelpers"
 	aa "golang.org/x/arch/arm64/arm64asm"
 )
 

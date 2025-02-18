@@ -1,15 +1,15 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package hotspot // import "go.opentelemetry.io/ebpf-profiler/interpreter/hotspot"
+package hotspot // import "github.com/toliu/opentelemetry-ebpf-profiler/interpreter/hotspot"
 
 import (
 	"bytes"
 	"fmt"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	npsr "go.opentelemetry.io/ebpf-profiler/nopanicslicereader"
-	"go.opentelemetry.io/ebpf-profiler/reporter"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	npsr "github.com/toliu/opentelemetry-ebpf-profiler/nopanicslicereader"
+	"github.com/toliu/opentelemetry-ebpf-profiler/reporter"
 )
 
 // Constants for the JVM internals that have never changed

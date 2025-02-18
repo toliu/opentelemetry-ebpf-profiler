@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package python // import "go.opentelemetry.io/ebpf-profiler/interpreter/python"
+package python // import "github.com/toliu/opentelemetry-ebpf-profiler/interpreter/python"
 
 import (
 	"bytes"
@@ -21,18 +21,18 @@ import (
 
 	"github.com/elastic/go-freelru"
 
-	"go.opentelemetry.io/ebpf-profiler/host"
-	"go.opentelemetry.io/ebpf-profiler/interpreter"
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	"go.opentelemetry.io/ebpf-profiler/libpf/pfelf"
-	"go.opentelemetry.io/ebpf-profiler/metrics"
-	npsr "go.opentelemetry.io/ebpf-profiler/nopanicslicereader"
-	"go.opentelemetry.io/ebpf-profiler/remotememory"
-	"go.opentelemetry.io/ebpf-profiler/reporter"
-	"go.opentelemetry.io/ebpf-profiler/successfailurecounter"
-	"go.opentelemetry.io/ebpf-profiler/support"
-	"go.opentelemetry.io/ebpf-profiler/tpbase"
-	"go.opentelemetry.io/ebpf-profiler/util"
+	"github.com/toliu/opentelemetry-ebpf-profiler/host"
+	"github.com/toliu/opentelemetry-ebpf-profiler/interpreter"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/pfelf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/metrics"
+	npsr "github.com/toliu/opentelemetry-ebpf-profiler/nopanicslicereader"
+	"github.com/toliu/opentelemetry-ebpf-profiler/remotememory"
+	"github.com/toliu/opentelemetry-ebpf-profiler/reporter"
+	"github.com/toliu/opentelemetry-ebpf-profiler/successfailurecounter"
+	"github.com/toliu/opentelemetry-ebpf-profiler/support"
+	"github.com/toliu/opentelemetry-ebpf-profiler/tpbase"
+	"github.com/toliu/opentelemetry-ebpf-profiler/util"
 )
 
 // #include <stdlib.h>

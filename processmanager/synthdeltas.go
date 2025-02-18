@@ -1,17 +1,17 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package processmanager // import "go.opentelemetry.io/ebpf-profiler/processmanager"
+package processmanager // import "github.com/toliu/opentelemetry-ebpf-profiler/processmanager"
 
 import (
 	"sort"
 
 	aa "golang.org/x/arch/arm64/arm64asm"
 
-	ah "go.opentelemetry.io/ebpf-profiler/armhelpers"
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	"go.opentelemetry.io/ebpf-profiler/libpf/pfelf"
-	sdtypes "go.opentelemetry.io/ebpf-profiler/nativeunwind/stackdeltatypes"
+	ah "github.com/toliu/opentelemetry-ebpf-profiler/armhelpers"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/pfelf"
+	sdtypes "github.com/toliu/opentelemetry-ebpf-profiler/nativeunwind/stackdeltatypes"
 )
 
 // regFP is the arm64 frame-pointer register (x29) number

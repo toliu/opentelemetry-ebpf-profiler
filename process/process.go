@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package process // import "go.opentelemetry.io/ebpf-profiler/process"
+package process // import "github.com/toliu/opentelemetry-ebpf-profiler/process"
 
 import (
 	"bufio"
@@ -15,11 +15,11 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	"go.opentelemetry.io/ebpf-profiler/libpf/pfelf"
-	"go.opentelemetry.io/ebpf-profiler/remotememory"
-	"go.opentelemetry.io/ebpf-profiler/stringutil"
-	"go.opentelemetry.io/ebpf-profiler/util"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/pfelf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/remotememory"
+	"github.com/toliu/opentelemetry-ebpf-profiler/stringutil"
+	"github.com/toliu/opentelemetry-ebpf-profiler/util"
 )
 
 // systemProcess provides an implementation of the Process interface for a

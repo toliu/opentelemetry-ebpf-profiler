@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package periodiccaller allows periodic calls of functions.
-package periodiccaller // import "go.opentelemetry.io/ebpf-profiler/periodiccaller"
+package periodiccaller // import "github.com/toliu/opentelemetry-ebpf-profiler/periodiccaller"
 
 import (
 	"context"
 	"time"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
 )
 
 // Start starts a timer that calls <callback> every <interval> until the <ctx> is canceled.

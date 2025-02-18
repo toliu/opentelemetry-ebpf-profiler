@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package dotnet // import "go.opentelemetry.io/ebpf-profiler/interpreter/dotnet"
+package dotnet // import "github.com/toliu/opentelemetry-ebpf-profiler/interpreter/dotnet"
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	npsr "go.opentelemetry.io/ebpf-profiler/nopanicslicereader"
+	npsr "github.com/toliu/opentelemetry-ebpf-profiler/nopanicslicereader"
 )
 
 type dotnetMethod struct {

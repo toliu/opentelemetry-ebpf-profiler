@@ -15,11 +15,11 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"go.opentelemetry.io/ebpf-profiler/internal/controller"
-	"go.opentelemetry.io/ebpf-profiler/internal/helpers"
-	"go.opentelemetry.io/ebpf-profiler/reporter"
-	"go.opentelemetry.io/ebpf-profiler/times"
-	"go.opentelemetry.io/ebpf-profiler/vc"
+	"github.com/toliu/opentelemetry-ebpf-profiler/internal/controller"
+	"github.com/toliu/opentelemetry-ebpf-profiler/internal/helpers"
+	"github.com/toliu/opentelemetry-ebpf-profiler/reporter"
+	"github.com/toliu/opentelemetry-ebpf-profiler/times"
+	"github.com/toliu/opentelemetry-ebpf-profiler/vc"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -29,7 +29,7 @@ var copyright = `Copyright The OpenTelemetry Authors.
 
 For the eBPF code loaded by Universal Profiling Agent into the kernel,
 the following license applies (GPLv2 only). You can obtain a copy of the GPLv2 code at:
-https://go.opentelemetry.io/ebpf-profiler/tree/main/support/ebpf
+https://github.com/toliu/opentelemetry-ebpf-profiler/tree/main/support/ebpf
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 only,
@@ -140,7 +140,7 @@ func mainWithExitCode() exitCode {
 	}
 	cfg.Reporter = rep
 
-	log.Infof("Starting OTEL profiling agent %s (revision %s, build timestamp %s)",
+	log.Tracef("Starting OTEL profiling agent %s (revision %s, build timestamp %s)",
 		vc.Version(), vc.Revision(), vc.BuildTimestamp())
 
 	ctlr := controller.New(cfg)
@@ -153,7 +153,7 @@ func mainWithExitCode() exitCode {
 	// Block waiting for a signal to indicate the program should terminate
 	<-ctx.Done()
 
-	log.Info("Exiting ...")
+	log.Trace("Exiting ...")
 	return exitSuccess
 }
 

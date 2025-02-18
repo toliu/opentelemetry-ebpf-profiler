@@ -5,7 +5,7 @@
 
 // For NT_FILE coredump mappings: https://www.gabriel.urdhr.fr/2015/05/29/core-file/
 
-package process // import "go.opentelemetry.io/ebpf-profiler/process"
+package process // import "github.com/toliu/opentelemetry-ebpf-profiler/process"
 
 import (
 	"bytes"
@@ -18,8 +18,8 @@ import (
 	"strings"
 	"unsafe"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	"go.opentelemetry.io/ebpf-profiler/libpf/pfelf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/pfelf"
 )
 
 const (

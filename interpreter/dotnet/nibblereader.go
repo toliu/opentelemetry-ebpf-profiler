@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package dotnet // import "go.opentelemetry.io/ebpf-profiler/interpreter/dotnet"
+package dotnet // import "github.com/toliu/opentelemetry-ebpf-profiler/interpreter/dotnet"
 
 import (
 	"errors"

@@ -13,8 +13,8 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 	log "github.com/sirupsen/logrus"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	"go.opentelemetry.io/ebpf-profiler/tools/coredump/modulestore"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/tools/coredump/modulestore"
 )
 
 type cleanCmd struct {
@@ -85,7 +85,7 @@ func (cmd *cleanCmd) cleanLocal(referenced libpf.Set[modulestore.ID]) error {
 			continue
 		}
 
-		log.Infof("Removing local module `%s`", module.String())
+		log.Tracef("Removing local module `%s`", module.String())
 		if !cmd.dry {
 			if err := cmd.store.RemoveLocalModule(module); err != nil {
 				return fmt.Errorf("failed to delete module: %w", err)
@@ -110,12 +110,12 @@ func (cmd *cleanCmd) cleanRemote(referenced libpf.Set[modulestore.ID]) error {
 			// In order to prevent us from accidentally deleting modules uploaded for tests
 			// proposed on other branches (but not yet merged with the current branch), we check
 			// whether the module was recently uploaded before deleting it.
-			log.Infof("Module `%s` is unreferenced, but was uploaded recently (%s). Skipping.",
+			log.Tracef("Module `%s` is unreferenced, but was uploaded recently (%s). Skipping.",
 				module.String(), lastChanged)
 			continue
 		}
 
-		log.Infof("Deleting unreferenced module `%s` (uploaded: %s)", module.String(), lastChanged)
+		log.Tracef("Deleting unreferenced module `%s` (uploaded: %s)", module.String(), lastChanged)
 		if !cmd.dry {
 			if err = cmd.store.RemoveRemoteModule(module); err != nil {
 				return fmt.Errorf("failed to delete remote module: %w", err)

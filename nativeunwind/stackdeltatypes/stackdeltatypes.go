@@ -4,7 +4,7 @@
 // Package stackdeltatypes provides types used to represent stack delta information as constructed
 // by `nativeunwind.GetIntervalStructures` This information is a post-processed form of the
 // stack delta information that is used in all relevant packages.
-package stackdeltatypes // import "go.opentelemetry.io/ebpf-profiler/nativeunwind/stackdeltatypes"
+package stackdeltatypes // import "github.com/toliu/opentelemetry-ebpf-profiler/nativeunwind/stackdeltatypes"
 
 // #include "../../support/ebpf/stackdeltatypes.h"
 import "C"

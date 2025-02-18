@@ -3,13 +3,13 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package tpbase // import "go.opentelemetry.io/ebpf-profiler/tpbase"
+package tpbase // import "github.com/toliu/opentelemetry-ebpf-profiler/tpbase"
 
 import (
 	"errors"
 	"unsafe"
 
-	_ "go.opentelemetry.io/ebpf-profiler/zydis" // links Zydis
+	_ "github.com/toliu/opentelemetry-ebpf-profiler/zydis" // links Zydis
 )
 
 // #cgo CFLAGS: -g -Wall

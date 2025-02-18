@@ -3,7 +3,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package process // import "go.opentelemetry.io/ebpf-profiler/process"
+package process // import "github.com/toliu/opentelemetry-ebpf-profiler/process"
 
 import (
 	"debug/elf"

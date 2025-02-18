@@ -7,8 +7,8 @@ import (
 	"debug/elf"
 	"testing"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf/pfelf"
-	sdtypes "go.opentelemetry.io/ebpf-profiler/nativeunwind/stackdeltatypes"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/pfelf"
+	sdtypes "github.com/toliu/opentelemetry-ebpf-profiler/nativeunwind/stackdeltatypes"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

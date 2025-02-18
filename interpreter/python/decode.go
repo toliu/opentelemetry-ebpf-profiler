@@ -1,13 +1,13 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package python // import "go.opentelemetry.io/ebpf-profiler/interpreter/python"
+package python // import "github.com/toliu/opentelemetry-ebpf-profiler/interpreter/python"
 
 import (
-	ah "go.opentelemetry.io/ebpf-profiler/armhelpers"
+	ah "github.com/toliu/opentelemetry-ebpf-profiler/armhelpers"
 	aa "golang.org/x/arch/arm64/arm64asm"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
 )
 
 // decodeStubArgumentWrapperARM64 disassembles arm64 code and decodes the assumed value

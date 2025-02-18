@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package hotspot // import "go.opentelemetry.io/ebpf-profiler/interpreter/hotspot"
+package hotspot // import "github.com/toliu/opentelemetry-ebpf-profiler/interpreter/hotspot"
 
 import (
 	"io"

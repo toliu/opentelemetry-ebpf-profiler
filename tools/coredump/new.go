@@ -15,10 +15,10 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 	log "github.com/sirupsen/logrus"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	"go.opentelemetry.io/ebpf-profiler/libpf/pfelf"
-	"go.opentelemetry.io/ebpf-profiler/process"
-	"go.opentelemetry.io/ebpf-profiler/tools/coredump/modulestore"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/pfelf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/process"
+	"github.com/toliu/opentelemetry-ebpf-profiler/tools/coredump/modulestore"
 )
 
 // gcorePathPrefix specifies the path prefix we ask gcore to use when creating coredumps.
@@ -65,7 +65,7 @@ func (tc *trackedCoredump) GetMappingFileLastModified(_ *process.Mapping) int64 
 
 func (tc *trackedCoredump) warnMissing(fileName string) {
 	if _, seen := tc.warn[fileName]; !seen {
-		log.Infof("Module `%s` was not found for bundling", fileName)
+		log.Tracef("Module `%s` was not found for bundling", fileName)
 		tc.warn[fileName] = libpf.Void{}
 	}
 }
@@ -194,7 +194,7 @@ func (cmd *newCmd) exec(context.Context, []string) (err error) {
 		return fmt.Errorf("failed to write test case: %w", err)
 	}
 
-	log.Info("Test case successfully written!")
+	log.Trace("Test case successfully written!")
 
 	return nil
 }
@@ -243,9 +243,9 @@ func putModule(store *modulestore.Store, fileName, prefix string, modules *[]Mod
 	}
 
 	if isNew {
-		log.Infof("Module `%s` was newly added to local storage", fileName)
+		log.Tracef("Module `%s` was newly added to local storage", fileName)
 	} else {
-		log.Infof("Module `%s` is already present in local storage", fileName)
+		log.Tracef("Module `%s` is already present in local storage", fileName)
 	}
 
 	*modules = append(*modules, ModuleInfo{

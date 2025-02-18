@@ -3,14 +3,14 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package php // import "go.opentelemetry.io/ebpf-profiler/interpreter/php"
+package php // import "github.com/toliu/opentelemetry-ebpf-profiler/interpreter/php"
 
 import (
 	"fmt"
 	"unsafe"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	_ "go.opentelemetry.io/ebpf-profiler/zydis" // links Zydis
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	_ "github.com/toliu/opentelemetry-ebpf-profiler/zydis" // links Zydis
 )
 
 // #cgo CFLAGS: -g -Wall

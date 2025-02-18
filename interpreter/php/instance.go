@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package php // import "go.opentelemetry.io/ebpf-profiler/interpreter/php"
+package php // import "github.com/toliu/opentelemetry-ebpf-profiler/interpreter/php"
 
 import (
 	"errors"
@@ -13,15 +13,15 @@ import (
 
 	"github.com/elastic/go-freelru"
 
-	"go.opentelemetry.io/ebpf-profiler/host"
-	"go.opentelemetry.io/ebpf-profiler/interpreter"
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	"go.opentelemetry.io/ebpf-profiler/metrics"
-	npsr "go.opentelemetry.io/ebpf-profiler/nopanicslicereader"
-	"go.opentelemetry.io/ebpf-profiler/remotememory"
-	"go.opentelemetry.io/ebpf-profiler/reporter"
-	"go.opentelemetry.io/ebpf-profiler/successfailurecounter"
-	"go.opentelemetry.io/ebpf-profiler/util"
+	"github.com/toliu/opentelemetry-ebpf-profiler/host"
+	"github.com/toliu/opentelemetry-ebpf-profiler/interpreter"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/metrics"
+	npsr "github.com/toliu/opentelemetry-ebpf-profiler/nopanicslicereader"
+	"github.com/toliu/opentelemetry-ebpf-profiler/remotememory"
+	"github.com/toliu/opentelemetry-ebpf-profiler/reporter"
+	"github.com/toliu/opentelemetry-ebpf-profiler/successfailurecounter"
+	"github.com/toliu/opentelemetry-ebpf-profiler/util"
 )
 
 //nolint:golint,stylecheck,revive

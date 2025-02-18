@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package reporter // import "go.opentelemetry.io/ebpf-profiler/reporter"
+package reporter // import "github.com/toliu/opentelemetry-ebpf-profiler/reporter"
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 
 	"google.golang.org/grpc/stats"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf/xsync"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/xsync"
 )
 
 type StatsHandlerImpl struct {

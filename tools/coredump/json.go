@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"go.opentelemetry.io/ebpf-profiler/tools/coredump/modulestore"
+	"github.com/toliu/opentelemetry-ebpf-profiler/tools/coredump/modulestore"
 )
 
 // CoredumpTestCase is the data structure generated from the core dump.

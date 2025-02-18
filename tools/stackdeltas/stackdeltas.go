@@ -12,10 +12,10 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	"go.opentelemetry.io/ebpf-profiler/nativeunwind/elfunwindinfo"
-	sdtypes "go.opentelemetry.io/ebpf-profiler/nativeunwind/stackdeltatypes"
-	"go.opentelemetry.io/ebpf-profiler/support"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/nativeunwind/elfunwindinfo"
+	sdtypes "github.com/toliu/opentelemetry-ebpf-profiler/nativeunwind/stackdeltatypes"
+	"github.com/toliu/opentelemetry-ebpf-profiler/support"
 )
 
 var (

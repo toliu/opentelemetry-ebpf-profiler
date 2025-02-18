@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package libpf // import "go.opentelemetry.io/ebpf-profiler/libpf"
+package libpf // import "github.com/toliu/opentelemetry-ebpf-profiler/libpf"
 
 import (
 	"bytes"
@@ -15,7 +15,7 @@ import (
 	"os"
 
 	sha256 "github.com/minio/sha256-simd"
-	"go.opentelemetry.io/ebpf-profiler/libpf/basehash"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/basehash"
 )
 
 // FileID is used for unique identifiers for files

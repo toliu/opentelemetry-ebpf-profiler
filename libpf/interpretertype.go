@@ -1,9 +1,9 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package libpf // import "go.opentelemetry.io/ebpf-profiler/libpf"
+package libpf // import "github.com/toliu/opentelemetry-ebpf-profiler/libpf"
 
-import "go.opentelemetry.io/ebpf-profiler/support"
+import "github.com/toliu/opentelemetry-ebpf-profiler/support"
 
 // InterpreterType variables can hold one of the interpreter type values defined below.
 type InterpreterType int

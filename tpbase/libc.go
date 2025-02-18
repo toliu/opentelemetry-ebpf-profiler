@@ -1,16 +1,16 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package tpbase // import "go.opentelemetry.io/ebpf-profiler/tpbase"
+package tpbase // import "github.com/toliu/opentelemetry-ebpf-profiler/tpbase"
 
 import (
 	"errors"
 	"fmt"
 	"regexp"
 
-	ah "go.opentelemetry.io/ebpf-profiler/armhelpers"
-	"go.opentelemetry.io/ebpf-profiler/libpf/pfelf"
-	"go.opentelemetry.io/ebpf-profiler/stringutil"
+	ah "github.com/toliu/opentelemetry-ebpf-profiler/armhelpers"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/pfelf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/stringutil"
 
 	aa "golang.org/x/arch/arm64/arm64asm"
 )

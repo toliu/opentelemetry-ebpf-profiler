@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package processmanager // import "go.opentelemetry.io/ebpf-profiler/processmanager"
+package processmanager // import "github.com/toliu/opentelemetry-ebpf-profiler/processmanager"
 
 import (
 	"sync"
@@ -9,17 +9,17 @@ import (
 
 	lru "github.com/elastic/go-freelru"
 
-	"go.opentelemetry.io/ebpf-profiler/host"
-	"go.opentelemetry.io/ebpf-profiler/interpreter"
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	"go.opentelemetry.io/ebpf-profiler/libpf/pfelf"
-	"go.opentelemetry.io/ebpf-profiler/metrics"
-	pmebpf "go.opentelemetry.io/ebpf-profiler/processmanager/ebpf"
-	eim "go.opentelemetry.io/ebpf-profiler/processmanager/execinfomanager"
-	"go.opentelemetry.io/ebpf-profiler/reporter"
-	"go.opentelemetry.io/ebpf-profiler/times"
-	"go.opentelemetry.io/ebpf-profiler/tpbase"
-	"go.opentelemetry.io/ebpf-profiler/util"
+	"github.com/toliu/opentelemetry-ebpf-profiler/host"
+	"github.com/toliu/opentelemetry-ebpf-profiler/interpreter"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/pfelf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/metrics"
+	pmebpf "github.com/toliu/opentelemetry-ebpf-profiler/processmanager/ebpf"
+	eim "github.com/toliu/opentelemetry-ebpf-profiler/processmanager/execinfomanager"
+	"github.com/toliu/opentelemetry-ebpf-profiler/reporter"
+	"github.com/toliu/opentelemetry-ebpf-profiler/times"
+	"github.com/toliu/opentelemetry-ebpf-profiler/tpbase"
+	"github.com/toliu/opentelemetry-ebpf-profiler/util"
 )
 
 // elfInfo contains cached data from an executable needed for processing mappings.

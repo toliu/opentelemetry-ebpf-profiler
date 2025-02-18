@@ -1,4 +1,4 @@
-package helpers // import "go.opentelemetry.io/ebpf-profiler/internal/helpers"
+package helpers // import "github.com/toliu/opentelemetry-ebpf-profiler/internal/helpers"
 
 import (
 	"errors"

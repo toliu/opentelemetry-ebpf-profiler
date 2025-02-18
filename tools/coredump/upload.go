@@ -13,7 +13,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"go.opentelemetry.io/ebpf-profiler/tools/coredump/modulestore"
+	"github.com/toliu/opentelemetry-ebpf-profiler/tools/coredump/modulestore"
 )
 
 type uploadCmd struct {
@@ -79,12 +79,12 @@ func (cmd *uploadCmd) exec(context.Context, []string) (err error) {
 			continue
 		}
 
-		log.Infof("Uploading module `%s`", id.String())
+		log.Tracef("Uploading module `%s`", id.String())
 		if err = cmd.store.UploadModule(id); err != nil {
 			return fmt.Errorf("failed to upload module: %w", err)
 		}
 	}
 
-	log.Info("All modules are present remotely")
+	log.Trace("All modules are present remotely")
 	return nil
 }

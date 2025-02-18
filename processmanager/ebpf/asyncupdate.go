@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package ebpf // import "go.opentelemetry.io/ebpf-profiler/processmanager/ebpf"
+package ebpf // import "github.com/toliu/opentelemetry-ebpf-profiler/processmanager/ebpf"
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 
 	cebpf "github.com/cilium/ebpf"
 	log "github.com/sirupsen/logrus"
-	"go.opentelemetry.io/ebpf-profiler/host"
+	"github.com/toliu/opentelemetry-ebpf-profiler/host"
 )
 
 // asyncMapUpdaterPool is a pool of goroutines for doing non-blocking updates

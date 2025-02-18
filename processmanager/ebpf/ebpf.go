@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package ebpf // import "go.opentelemetry.io/ebpf-profiler/processmanager/ebpf"
+package ebpf // import "github.com/toliu/opentelemetry-ebpf-profiler/processmanager/ebpf"
 
 import (
 	"context"
@@ -16,15 +16,15 @@ import (
 	"golang.org/x/exp/constraints"
 	"golang.org/x/sys/unix"
 
-	"go.opentelemetry.io/ebpf-profiler/host"
-	"go.opentelemetry.io/ebpf-profiler/interpreter"
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	"go.opentelemetry.io/ebpf-profiler/lpm"
-	"go.opentelemetry.io/ebpf-profiler/metrics"
-	sdtypes "go.opentelemetry.io/ebpf-profiler/nativeunwind/stackdeltatypes"
-	"go.opentelemetry.io/ebpf-profiler/rlimit"
-	"go.opentelemetry.io/ebpf-profiler/support"
-	"go.opentelemetry.io/ebpf-profiler/util"
+	"github.com/toliu/opentelemetry-ebpf-profiler/host"
+	"github.com/toliu/opentelemetry-ebpf-profiler/interpreter"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/lpm"
+	"github.com/toliu/opentelemetry-ebpf-profiler/metrics"
+	sdtypes "github.com/toliu/opentelemetry-ebpf-profiler/nativeunwind/stackdeltatypes"
+	"github.com/toliu/opentelemetry-ebpf-profiler/rlimit"
+	"github.com/toliu/opentelemetry-ebpf-profiler/support"
+	"github.com/toliu/opentelemetry-ebpf-profiler/util"
 )
 
 /*
@@ -236,12 +236,12 @@ func LoadMaps(ctx context.Context, maps map[string]*cebpf.Map) (EbpfHandler, err
 	}
 
 	if err := probeBatchOperations(cebpf.Hash); err == nil {
-		log.Infof("Supports generic eBPF map batch operations")
+		log.Tracef("Supports generic eBPF map batch operations")
 		impl.hasGenericBatchOperations = true
 	}
 
 	if err := probeBatchOperations(cebpf.LPMTrie); err == nil {
-		log.Infof("Supports LPM trie eBPF map batch operations")
+		log.Tracef("Supports LPM trie eBPF map batch operations")
 		impl.hasLPMTrieBatchOperations = true
 	}
 

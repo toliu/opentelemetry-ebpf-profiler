@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package testsupport // import "go.opentelemetry.io/ebpf-profiler/testsupport"
+package testsupport // import "github.com/toliu/opentelemetry-ebpf-profiler/testsupport"
 
 import (
 	"encoding/base64"

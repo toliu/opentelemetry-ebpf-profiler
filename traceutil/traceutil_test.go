@@ -6,8 +6,8 @@ package traceutil
 import (
 	"testing"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-	"go.opentelemetry.io/ebpf-profiler/support"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/support"
 
 	"github.com/stretchr/testify/assert"
 )

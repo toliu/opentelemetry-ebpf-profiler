@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package elfunwindinfo // import "go.opentelemetry.io/ebpf-profiler/nativeunwind/elfunwindinfo"
+package elfunwindinfo // import "github.com/toliu/opentelemetry-ebpf-profiler/nativeunwind/elfunwindinfo"
 
 import (
 	"bytes"
@@ -14,9 +14,9 @@ import (
 	lru "github.com/elastic/go-freelru"
 	log "github.com/sirupsen/logrus"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf/hash"
-	"go.opentelemetry.io/ebpf-profiler/libpf/pfelf"
-	sdtypes "go.opentelemetry.io/ebpf-profiler/nativeunwind/stackdeltatypes"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/hash"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/pfelf"
+	sdtypes "github.com/toliu/opentelemetry-ebpf-profiler/nativeunwind/stackdeltatypes"
 )
 
 const (

@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package hotspot // import "go.opentelemetry.io/ebpf-profiler/interpreter/hotspot"
+package hotspot // import "github.com/toliu/opentelemetry-ebpf-profiler/interpreter/hotspot"
 
 // Java HotSpot Unwinder support code (works also with Scala using HotSpot)
 
@@ -110,8 +110,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"go.opentelemetry.io/ebpf-profiler/interpreter"
-	"go.opentelemetry.io/ebpf-profiler/libpf"
+	"github.com/toliu/opentelemetry-ebpf-profiler/interpreter"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
 )
 
 var (

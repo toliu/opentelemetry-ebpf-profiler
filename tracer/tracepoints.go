@@ -1,14 +1,14 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package tracer // import "go.opentelemetry.io/ebpf-profiler/tracer"
+package tracer // import "github.com/toliu/opentelemetry-ebpf-profiler/tracer"
 
 import (
 	"fmt"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
-	"go.opentelemetry.io/ebpf-profiler/rlimit"
+	"github.com/toliu/opentelemetry-ebpf-profiler/rlimit"
 )
 
 // attachToTracepoint attaches an eBPF program of type tracepoint to a tracepoint in the kernel

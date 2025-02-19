@@ -5,6 +5,7 @@ package libpf // import "go.opentelemetry.io/ebpf-profiler/libpf"
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -91,6 +92,15 @@ func (symmap *SymbolMap) LookupSymbolByPrefix(prefix string) (*Symbol, error) {
 		}
 	}
 	return nil, fmt.Errorf("no symbol present that starts with '%s'", prefix)
+}
+
+func (symmap *SymbolMap) LookupSymbolByRegexp(reg *regexp.Regexp) (*Symbol, error) {
+	for name, sym := range symmap.nameToSymbol {
+		if reg.MatchString(string(name)) {
+			return sym, nil
+		}
+	}
+	return nil, fmt.Errorf("no symbol present that match '%s'", reg)
 }
 
 // LookupSymbolAddress returns the address of a symbol.

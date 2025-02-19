@@ -12,6 +12,7 @@ import (
 	"hash/fnv"
 	"math"
 	"math/rand/v2"
+	"regexp"
 	"sort"
 	"strings"
 	"sync/atomic"
@@ -1297,9 +1298,10 @@ func (t *Tracer) StartOffCPUProfiling() error {
 		return errors.New("off-cpu program finish_task_switch is not available")
 	}
 
-	kprobeSymbol, err := t.kernelSymbols.LookupSymbolByPrefix("finish_task_switch")
+	reg := regexp.MustCompile(`^finish_task_switch(.*)?[^\\.cold]$`)
+	kprobeSymbol, err := t.kernelSymbols.LookupSymbolByRegexp(reg)
 	if err != nil {
-		return errors.New("failed to find kernel symbol for finish_task_switch")
+		return err
 	}
 
 	kprobeLink, err := link.Kprobe(string(kprobeSymbol.Name), kprobeProg, nil)

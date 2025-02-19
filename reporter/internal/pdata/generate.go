@@ -117,6 +117,8 @@ func (p *Pdata) setProfile(
 			loc := profile.LocationTable().AppendEmpty()
 			loc.SetAddress(uint64(traceInfo.Linenos[i]))
 			attrMgr.AppendOptionalString(loc.AttributeIndices(),
+				`profile.location.fileID`, traceInfo.Files[i].Base64())
+			attrMgr.AppendOptionalString(loc.AttributeIndices(),
 				"profile.frame.type", traceInfo.FrameTypes[i].String())
 
 			switch frameKind := traceInfo.FrameTypes[i]; frameKind {

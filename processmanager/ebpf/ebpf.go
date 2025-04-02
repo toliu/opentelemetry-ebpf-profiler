@@ -115,6 +115,7 @@ type ebpfMapsImpl struct {
 	errCounter     map[metrics.MetricID]int64
 
 	hasGenericBatchOperations bool
+	hasArrayBatchOperations   bool
 	hasLPMTrieBatchOperations bool
 
 	updateWorkers *asyncMapUpdaterPool
@@ -236,6 +237,11 @@ func LoadMaps(ctx context.Context, maps map[string]*cebpf.Map) (EbpfHandler, err
 	if err := probeBatchOperations(cebpf.Hash); err == nil {
 		log.Infof("Supports generic eBPF map batch operations")
 		impl.hasGenericBatchOperations = true
+	}
+
+	if err := probeBatchOperations(cebpf.Array); err == nil {
+		log.Infof("Supports array eBPF map batch operations")
+		impl.hasArrayBatchOperations = true
 	}
 
 	if err := probeBatchOperations(cebpf.LPMTrie); err == nil {
@@ -612,7 +618,7 @@ func (impl *ebpfMapsImpl) UpdateExeIDToStackDeltas(fileID host.FileID, deltas []
 
 	impl.updateWorkers.EnqueueUpdate(outerMap, fileID, innerMapCloned)
 
-	if impl.hasGenericBatchOperations {
+	if impl.hasArrayBatchOperations {
 		innerKeys := make([]uint32, numDeltas)
 		stackDeltas := make([]C.StackDelta, numDeltas)
 

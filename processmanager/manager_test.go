@@ -243,9 +243,10 @@ func (mockup *ebpfMapsMockup) DeletePidPageMappingInfo(_ libpf.PID, prefixes []l
 	return len(prefixes), nil
 }
 
-func (mockup *ebpfMapsMockup) CollectMetrics() []metrics.Metric     { return []metrics.Metric{} }
-func (mockup *ebpfMapsMockup) SupportsGenericBatchOperations() bool { return false }
-func (mockup *ebpfMapsMockup) SupportsLPMTrieBatchOperations() bool { return false }
+func (mockup *ebpfMapsMockup) CollectMetrics() []metrics.Metric        { return []metrics.Metric{} }
+func (mockup *ebpfMapsMockup) SupportsGenericBatchOperations() bool    { return false }
+func (mockup *ebpfMapsMockup) SupportsLPMTrieBatchOperations() bool    { return false }
+func (mockup *ebpfMapsMockup) ConfigureTargetPIDs(_ []libpf.PID) error { return nil }
 
 type symbolReporterMockup struct{}
 
@@ -318,7 +319,7 @@ func TestInterpreterConvertTrace(t *testing.T) {
 				nil,
 				&symbolReporterMockup{},
 				nil,
-				true)
+				true, []libpf.PID{})
 			require.NoError(t, err)
 
 			newTrace := manager.ConvertTrace(testcase.trace)
@@ -403,7 +404,7 @@ func TestNewMapping(t *testing.T) {
 				NewMapFileIDMapper(),
 				symRepMockup,
 				&dummyProvider,
-				true)
+				true, []libpf.PID{})
 			require.NoError(t, err)
 
 			// Replace the internal hooks for the tests. These hooks catch the
@@ -588,7 +589,7 @@ func TestProcExit(t *testing.T) {
 				NewMapFileIDMapper(),
 				repMockup,
 				&dummyProvider,
-				true)
+				true, []libpf.PID{})
 			require.NoError(t, err)
 			defer cancel()
 

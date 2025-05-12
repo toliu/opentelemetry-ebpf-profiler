@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
 	"runtime"
 	"time"
 
@@ -41,6 +42,8 @@ type Config struct {
 	Reporter reporter.Reporter
 
 	Fs *flag.FlagSet
+
+	TargetPIDs []libpf.PID
 }
 
 const (

@@ -81,6 +81,14 @@ bpf_map_def SEC("maps") kernel_stackmap = {
   .max_entries = 16 * 1024,
 };
 
+
+bpf_map_def SEC("maps") target_pids = {
+  .type        = BPF_MAP_TYPE_HASH,
+  .key_size    = sizeof(u32),
+  .value_size  = sizeof(u8),
+  .max_entries = 10000,
+};
+
 // Record a native frame
 static inline __attribute__((__always_inline__)) ErrorCode
 push_native(Trace *trace, u64 file, u64 line, bool return_address)

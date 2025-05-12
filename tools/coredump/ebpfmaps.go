@@ -257,3 +257,7 @@ func (emc *ebpfMapsCoredump) SupportsGenericBatchOperations() bool {
 func (emc *ebpfMapsCoredump) SupportsLPMTrieBatchOperations() bool {
 	return false
 }
+
+func (emc *ebpfMapsCoredump) ConfigureTargetPIDs(pids []libpf.PID) error {
+	return nil
+}

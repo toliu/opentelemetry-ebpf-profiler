@@ -157,6 +157,8 @@ type Config struct {
 	ProbabilisticThreshold uint
 	// OffCPUThreshold is the user defined threshold for off-cpu profiling.
 	OffCPUThreshold uint32
+	// TargetPIDs is a list of PIDs to target for profiling.
+	TargetPIDs []libpf.PID
 }
 
 // hookPoint specifies the group and name of the hooked point in the kernel.
@@ -297,9 +299,12 @@ func NewTracer(ctx context.Context, cfg *Config) (*Tracer, error) {
 
 	processManager, err := pm.New(ctx, cfg.IncludeTracers, cfg.Intervals.MonitorInterval(),
 		ebpfHandler, nil, cfg.Reporter, elfunwindinfo.NewStackDeltaProvider(),
-		cfg.FilterErrorFrames)
+		cfg.FilterErrorFrames, cfg.TargetPIDs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create processManager: %v", err)
+	}
+	if err = processManager.ConfigureTargetPids(); err != nil {
+		return nil, fmt.Errorf("failed to configure target PIDs: %v", err)
 	}
 
 	const fallbackSymbolsCacheSize = 16384
@@ -1327,4 +1332,8 @@ func (t *Tracer) StartOffCPUProfiling() error {
 // TraceProcessor gets the trace processor.
 func (t *Tracer) TraceProcessor() tracehandler.TraceProcessor {
 	return t.processManager
+}
+
+func (t *Tracer) SyncTargetPIDs(targetPids []libpf.PID) error {
+	return t.processManager.SyncTargetPids(targetPids)
 }

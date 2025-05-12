@@ -18,6 +18,7 @@ extern bpf_map_def inhibit_events;
 extern bpf_map_def interpreter_offsets;
 extern bpf_map_def system_config;
 extern bpf_map_def trace_events;
+extern bpf_map_def target_pids;
 
 #if defined(TESTING_COREDUMP)
 

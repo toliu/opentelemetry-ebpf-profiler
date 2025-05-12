@@ -3,6 +3,7 @@ package controller // import "github.com/toliu/opentelemetry-ebpf-profiler/inter
 import (
 	"context"
 	"fmt"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -85,6 +86,7 @@ func (c *Controller) Start(ctx context.Context) error {
 		ProbabilisticInterval:  c.config.ProbabilisticInterval,
 		ProbabilisticThreshold: c.config.ProbabilisticThreshold,
 		OffCPUThreshold:        uint32(c.config.OffCPUThreshold),
+		TargetPIDs:             c.config.TargetPIDs,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to load eBPF tracer: %w", err)
@@ -147,6 +149,10 @@ func (c *Controller) Shutdown() {
 	if c.tracer != nil {
 		c.tracer.Close()
 	}
+}
+
+func (c *Controller) SyncTargetPIDs(targetPids []libpf.PID) error {
+	return c.tracer.SyncTargetPIDs(targetPids)
 }
 
 func startTraceHandling(ctx context.Context, rep reporter.TraceReporter,

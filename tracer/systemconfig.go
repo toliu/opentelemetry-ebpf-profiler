@@ -217,14 +217,34 @@ func determineStackPtregs(coll *cebpf.CollectionSpec, maps map[string]*cebpf.Map
 	return nil
 }
 
+// 判断是否是麒麟的arm系统
+func isArmKylinOS() bool {
+	if runtime.GOARCH != "arm64" {
+		return false
+	}
+	// 检查是否存在麒麟特有文件
+	if _, err := os.Stat("/etc/.kyinfo"); err == nil {
+		return true
+	}
+	if _, err := os.Stat("/etc/kylin-release"); err == nil {
+		return true
+	}
+	return false
+}
+
 // determineStackLayout scans `task_struct` for offset of the `stack` field, and using
 // its value determines the offset of `struct pt_regs` within the entry stack.
 func determineStackLayout(coll *cebpf.CollectionSpec, maps map[string]*cebpf.Map,
 	syscfg *C.SystemConfig) error {
 	const maxTaskStructSize = 8 * 1024
 	const maxStackSize = 64 * 1024
+	const KylinDefaultStackSize = 16 * 1024
 
 	pageSizeMinusOne := uint64(os.Getpagesize() - 1)
+	// 当前仅在arm麒麟系统发现 page_size 为64k，stack_size 16k, 这个时候会在一个page上分配多个stack，使用page_size做对齐校验会不通过
+	if isArmKylinOS() {
+		pageSizeMinusOne = KylinDefaultStackSize - 1
+	}
 
 	for offs := 0; offs < maxTaskStructSize; {
 		data, ptregs, err := readTaskStruct(coll, maps, libpf.SymbolValue(offs))

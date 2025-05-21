@@ -12,7 +12,6 @@ import (
 	"hash/fnv"
 	"math"
 	"math/rand/v2"
-	"regexp"
 	"sort"
 	"strings"
 	"sync/atomic"
@@ -1303,8 +1302,10 @@ func (t *Tracer) StartOffCPUProfiling() error {
 		return errors.New("off-cpu program finish_task_switch is not available")
 	}
 
-	reg := regexp.MustCompile(`^finish_task_switch(.*)?[^\\.cold]$`)
-	kprobeSymbol, err := t.kernelSymbols.LookupSymbolByRegexp(reg)
+	// 一般编译器会将finish_task_switch函数编译优化为finish_task_switch.isra.0,
+	//但是在在euler系统上出现了原始的函数名finish_task_switch，导致正则匹配失败.
+	// 这里现在会过滤.cold结尾的函数
+	kprobeSymbol, err := t.kernelSymbols.LookupFinishTaskSwitchSymbol()
 	if err != nil {
 		return err
 	}

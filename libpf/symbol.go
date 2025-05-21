@@ -5,7 +5,6 @@ package libpf // import "github.com/toliu/opentelemetry-ebpf-profiler/libpf"
 
 import (
 	"fmt"
-	"regexp"
 	"sort"
 	"strings"
 )
@@ -94,13 +93,13 @@ func (symmap *SymbolMap) LookupSymbolByPrefix(prefix string) (*Symbol, error) {
 	return nil, fmt.Errorf("no symbol present that starts with '%s'", prefix)
 }
 
-func (symmap *SymbolMap) LookupSymbolByRegexp(reg *regexp.Regexp) (*Symbol, error) {
+func (symmap *SymbolMap) LookupFinishTaskSwitchSymbol() (*Symbol, error) {
 	for name, sym := range symmap.nameToSymbol {
-		if reg.MatchString(string(name)) {
+		if strings.HasPrefix(string(name), "finish_task_switch") && !strings.Contains(string(name), ".cold") {
 			return sym, nil
 		}
 	}
-	return nil, fmt.Errorf("no symbol present that match '%s'", reg)
+	return nil, fmt.Errorf("no 'finish_task_switch' symbol present")
 }
 
 // LookupSymbolAddress returns the address of a symbol.

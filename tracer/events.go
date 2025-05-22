@@ -98,11 +98,15 @@ func startPerfEventMonitor(ctx context.Context, perfEventMap *ebpf.Map,
 	go func() {
 		var data perf.Record
 		for {
+			eventReader.SetDeadline(time.Now().Add(2 * time.Second))
 			select {
 			case <-ctx.Done():
 				return
 			default:
 				if err := eventReader.ReadInto(&data); err != nil {
+					if errors.Is(err, os.ErrDeadlineExceeded) {
+						continue
+					}
 					readErrorCount.Add(1)
 					continue
 				}

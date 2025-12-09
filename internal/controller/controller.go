@@ -87,7 +87,8 @@ func (c *Controller) Start(ctx context.Context) error {
 		ProbabilisticThreshold: c.config.ProbabilisticThreshold,
 		OffCPUThreshold:        uint32(c.config.OffCPUThreshold),
 		TargetPIDs:             c.config.TargetPIDs,
-		MemProfile:             c.config.MemProfile,
+		MemProfileBlock:        c.config.MemProfileBlock,
+		HotspotMPLibPath:       c.config.HotspotMPLibPath,
 	})
 	if err != nil {
 		c.reporter.Stop()
@@ -103,7 +104,7 @@ func (c *Controller) Start(ctx context.Context) error {
 	metrics.Add(metrics.IDProcPIDStartupMs, metrics.MetricValue(time.Since(now).Milliseconds()))
 	log.Trace("Completed initial PID listing")
 
-	if c.config.CpuProfile {
+	if c.config.SamplesPerSecond > 0 {
 		// Attach our tracer to the perf event
 		if err := trc.AttachTracer(); err != nil {
 			return fmt.Errorf("failed to attach to perf event: %w", err)
@@ -118,8 +119,8 @@ func (c *Controller) Start(ctx context.Context) error {
 		}
 	}
 
-	if c.config.MemProfile {
-		trc.SyncMemProfile(c.config.MemProfilePIDs, c.config.MemProfileBlock)
+	if c.config.MemProfileBlock > 0 {
+		trc.SyncMemProfile(c.config.TargetPIDs, c.config.MemProfileBlock)
 	}
 
 	if c.config.ProbabilisticThreshold < tracer.ProbabilisticThresholdMax {
@@ -162,12 +163,10 @@ func (c *Controller) Shutdown() {
 }
 
 func (c *Controller) SyncTargetPIDs(targetPids []libpf.PID) error {
+	c.tracer.SyncMemProfileTargetPids(targetPids)
 	return c.tracer.SyncTargetPIDs(targetPids)
 }
 
-func (c *Controller) SyncMemProfileTargetPIDs(targetPids []libpf.PID) error {
-	return c.tracer.SyncMemProfileTargetPids(targetPids)
-}
 func (c *Controller) SyncMemProfileBlock(memProfileBlock uint64) error {
 	return c.tracer.SyncMemProfileBlock(memProfileBlock)
 }

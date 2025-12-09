@@ -151,6 +151,7 @@ type MemProfileMeta struct {
 	MinorVersion int
 	LibcPath     string
 	ExecAbsPath  string
+	ItData       interpreter.Data
 }
 
 // processInfo contains information about the executable mappings

@@ -23,13 +23,13 @@ type (
 func NewCollector(sr SymbolReporter) *Collector { return &Collector{sr: sr} }
 
 func (c *Collector) Start(ctx context.Context, freq, offCpuThreshold int, interval time.Duration,
-	cpuProfileTargetPids []libpf.PID, cacheEventSTolerance int,
-	cacheEventSTimeout time.Duration, memProfile bool, cpuProfile bool, memProfilePids []libpf.PID,
-	memProfileBlock uint64) error {
+	targetPids []libpf.PID, cacheEventSTolerance int, cacheEventSTimeout time.Duration,
+	memProfileBlock uint64, hotspotMPLibPath string) error {
 	if c.cfg != nil {
 		if c.cfg.ReporterInterval == interval &&
 			c.cfg.SamplesPerSecond == freq &&
-			c.cfg.OffCPUThreshold == uint(offCpuThreshold) {
+			c.cfg.OffCPUThreshold == uint(offCpuThreshold) &&
+			c.cfg.MemProfileBlock == memProfileBlock {
 			return nil
 		}
 		c.Stop()
@@ -45,13 +45,11 @@ func (c *Collector) Start(ctx context.Context, freq, offCpuThreshold int, interv
 		NoKernelVersionCheck: true, ProbabilisticInterval: time.Minute,
 		ProbabilisticThreshold: tracer.ProbabilisticThresholdMax * 2,
 		ReporterInterval:       interval, SamplesPerSecond: freq, Reporter: rpt,
-		Tracers:         "perl,php,python,hotspot,ruby,v8",
-		OffCPUThreshold: uint(offCpuThreshold),
-		TargetPIDs:      cpuProfileTargetPids,
-		MemProfile:      memProfile,
-		CpuProfile:      cpuProfile,
-		MemProfilePIDs:  memProfilePids,
-		MemProfileBlock: memProfileBlock,
+		Tracers:          "perl,php,python,hotspot,ruby,v8",
+		OffCPUThreshold:  uint(offCpuThreshold),
+		TargetPIDs:       targetPids,
+		MemProfileBlock:  memProfileBlock,
+		HotspotMPLibPath: hotspotMPLibPath,
 	}
 	ctrl := controller.New(cfg)
 	if err = ctrl.Start(ctx); err != nil {
@@ -74,10 +72,6 @@ func (c *Collector) Stop() {
 
 func (c *Collector) SyncTargetPIDs(targetPIds []libpf.PID) error {
 	return c.ctrl.SyncTargetPIDs(targetPIds)
-}
-
-func (c *Collector) SyncMemProfileTargetPids(targetPIds []libpf.PID) error {
-	return c.ctrl.SyncMemProfileTargetPIDs(targetPIds)
 }
 
 func (c *Collector) SyncMemProfileBlock(memProfileBlock uint64) error {

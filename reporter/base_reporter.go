@@ -130,10 +130,11 @@ func (b *baseReporter) ReportTraceEvent(trace *libpf.Trace, meta *samples.TraceE
 				keyHash = hash
 			}
 		}
-		//不同的线程ID，导致key不一样，无法将栈进行合并
+		//不同的线程ID，导致key不一样，无法将栈进行合并,内存剖析不上报线程了。
 		meta.TID = 0
 		extraMeta = uint64(meta.PID.Hash32())<<32 | uint64(meta.TID.Hash32()) // NOTE this logic is from cloudcapture
-		//extraMeta = hash FIXME when you debug locally, use this，extraMeta just set tp hash
+		// FIXME when you debug locally, use this，extraMeta just set tp hash
+		//extraMeta = keyHash
 	}
 
 	containerID, err := libpf.LookupCgroupv2(b.cgroupv2ID, meta.PID)
@@ -173,8 +174,8 @@ func (b *baseReporter) ReportTraceEvent(trace *libpf.Trace, meta *samples.TraceE
 					MappingStarts:      trace.MappingStart,
 					MappingEnds:        trace.MappingEnd,
 					MappingFileOffsets: trace.MappingFileOffsets,
-					Timestamps:         []uint64{0},      // 只记录最新的时间
-					MemAlloc:           []int64{0, 0, 0}, // 记录最新的内存状态
+					Timestamps:         []uint64{0},       // 只记录最新的时间
+					MemAlloc:           []int64{0, 0, -1}, // 记录最新的内存状态
 				}
 			} else {
 				return

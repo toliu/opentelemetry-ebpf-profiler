@@ -173,7 +173,10 @@ func main() {
 	defer cancel()
 
 	c := colasoft.NewCollector(attrs)
-	if err := c.Start(ctx, 20, 0, time.Second*5, nil, 5000, time.Minute, true, false, []libpf.PID{}, 1024*512); err != nil {
+
+	if err := c.Start(ctx, 0, 0, time.Second*5,
+		[]libpf.PID{}, 5000, time.Minute, 1024*512,
+		""); err != nil {
 		log.Fatal(err)
 	}
 	<-ctx.Done()

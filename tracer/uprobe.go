@@ -4,6 +4,7 @@ import (
 	"debug/buildinfo"
 	"errors"
 	"fmt"
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -253,6 +254,18 @@ func (t *Tracer) triggerMemProfile(p process.Process) error {
 			newMemProfileInfo.MajorVersion = major
 			newMemProfileInfo.MinorVersion = minor
 			memProfileInfo = &newMemProfileInfo
+		}
+		replaceLibc := os.Getenv("GO_LIBC_PROCESS")
+		if replaceLibc == "" {
+			replaceLibc = "probed"
+		}
+		processList := strings.Split(replaceLibc, ",")
+		for _, item := range processList {
+			if strings.HasSuffix(execPath, item) {
+				startProfiling = t.StartCLikeMemProfiling
+				execPath = memProfileInfo.LibcPath
+				break
+			}
 		}
 	case libpf.PHP, libpf.PHPJIT, libpf.Kernel, libpf.Ruby, libpf.Perl, libpf.V8, libpf.Dotnet:
 		return nil

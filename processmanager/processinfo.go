@@ -532,6 +532,10 @@ func (pm *ProcessManager) synchronizeMappings(pr process.Process,
 		key := m.GetOnDiskFileIdentifier()
 		interpretersValid[key] = libpf.Void{}
 
+		isLibc := isCLibrary(m.Path)
+		if isLibc {
+			libcPath = fmt.Sprintf("/proc/%d/root%s", pid, getAbsPath(pid, m.Path))
+		}
 		// 内存profile元数据获取, 相同动态库的符号表会被去重，遍历自身进程时判断内存采集类型，不然后来的进程无法确定采集类型
 		if isJvmLibrary(m.Path) {
 			lan = libpf.HotSpot
@@ -550,11 +554,6 @@ func (pm *ProcessManager) synchronizeMappings(pr process.Process,
 		// golang类型的判断需要从elf文件中读取
 		if elf.IsGolang() {
 			lan = libpf.Golang
-			continue
-		}
-		isLibc := isCLibrary(m.Path)
-		if isLibc {
-			libcPath = fmt.Sprintf("/proc/%d/root%s", pid, getAbsPath(pid, m.Path))
 			continue
 		}
 	}

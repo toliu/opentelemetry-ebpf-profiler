@@ -6,7 +6,7 @@ package libpf
 import (
 	"testing"
 
-	"github.com/toliu/opentelemetry-ebpf-profiler/util"
+	"go.opentelemetry.io/ebpf-profiler/util"
 
 	"github.com/stretchr/testify/assert"
 )

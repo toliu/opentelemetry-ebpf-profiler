@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/toliu/opentelemetry-ebpf-profiler/support"
+	"go.opentelemetry.io/ebpf-profiler/support"
 )
 
 func TestMapID(t *testing.T) {

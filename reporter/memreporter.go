@@ -1,8 +1,8 @@
 package reporter
 
 import (
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
-	"github.com/toliu/opentelemetry-ebpf-profiler/reporter/hotspotmem"
+	"go.opentelemetry.io/ebpf-profiler/libpf"
+	"go.opentelemetry.io/ebpf-profiler/reporter/hotspotmem"
 )
 
 type HotspotMemReporter interface {

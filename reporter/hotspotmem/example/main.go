@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	hp "github.com/toliu/opentelemetry-ebpf-profiler/reporter/hotspotmem"
+	hp "go.opentelemetry.io/ebpf-profiler/reporter/hotspotmem"
 	"go.opentelemetry.io/collector/pdata/pprofile"
 	"log"
 	"os"

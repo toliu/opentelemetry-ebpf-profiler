@@ -15,21 +15,21 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/toliu/opentelemetry-ebpf-profiler/host"
-	"github.com/toliu/opentelemetry-ebpf-profiler/interpreter"
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/pfelf"
-	"github.com/toliu/opentelemetry-ebpf-profiler/lpm"
-	"github.com/toliu/opentelemetry-ebpf-profiler/metrics"
-	"github.com/toliu/opentelemetry-ebpf-profiler/nativeunwind"
-	sdtypes "github.com/toliu/opentelemetry-ebpf-profiler/nativeunwind/stackdeltatypes"
-	"github.com/toliu/opentelemetry-ebpf-profiler/process"
-	pmebpf "github.com/toliu/opentelemetry-ebpf-profiler/processmanager/ebpf"
-	"github.com/toliu/opentelemetry-ebpf-profiler/remotememory"
-	"github.com/toliu/opentelemetry-ebpf-profiler/reporter"
-	tracertypes "github.com/toliu/opentelemetry-ebpf-profiler/tracer/types"
-	"github.com/toliu/opentelemetry-ebpf-profiler/traceutil"
-	"github.com/toliu/opentelemetry-ebpf-profiler/util"
+	"go.opentelemetry.io/ebpf-profiler/host"
+	"go.opentelemetry.io/ebpf-profiler/interpreter"
+	"go.opentelemetry.io/ebpf-profiler/libpf"
+	"go.opentelemetry.io/ebpf-profiler/libpf/pfelf"
+	"go.opentelemetry.io/ebpf-profiler/lpm"
+	"go.opentelemetry.io/ebpf-profiler/metrics"
+	"go.opentelemetry.io/ebpf-profiler/nativeunwind"
+	sdtypes "go.opentelemetry.io/ebpf-profiler/nativeunwind/stackdeltatypes"
+	"go.opentelemetry.io/ebpf-profiler/process"
+	pmebpf "go.opentelemetry.io/ebpf-profiler/processmanager/ebpf"
+	"go.opentelemetry.io/ebpf-profiler/remotememory"
+	"go.opentelemetry.io/ebpf-profiler/reporter"
+	tracertypes "go.opentelemetry.io/ebpf-profiler/tracer/types"
+	"go.opentelemetry.io/ebpf-profiler/traceutil"
+	"go.opentelemetry.io/ebpf-profiler/util"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -243,10 +243,10 @@ func (mockup *ebpfMapsMockup) DeletePidPageMappingInfo(_ libpf.PID, prefixes []l
 	return len(prefixes), nil
 }
 
-func (mockup *ebpfMapsMockup) CollectMetrics() []metrics.Metric        { return []metrics.Metric{} }
-func (mockup *ebpfMapsMockup) SupportsGenericBatchOperations() bool    { return false }
-func (mockup *ebpfMapsMockup) SupportsLPMTrieBatchOperations() bool    { return false }
-func (mockup *ebpfMapsMockup) ConfigureTargetPIDs(_ []libpf.PID) error { return nil }
+func (mockup *ebpfMapsMockup) CollectMetrics() []metrics.Metric            { return []metrics.Metric{} }
+func (mockup *ebpfMapsMockup) SupportsGenericBatchOperations() bool        { return false }
+func (mockup *ebpfMapsMockup) SupportsLPMTrieBatchOperations() bool        { return false }
+func (mockup *ebpfMapsMockup) UpdateTargetPIDs(add, remove []uint32) error { return nil }
 
 type symbolReporterMockup struct{}
 
@@ -319,7 +319,7 @@ func TestInterpreterConvertTrace(t *testing.T) {
 				nil,
 				&symbolReporterMockup{},
 				nil,
-				true, []libpf.PID{})
+				true)
 			require.NoError(t, err)
 
 			newTrace := manager.ConvertTrace(testcase.trace)
@@ -404,7 +404,7 @@ func TestNewMapping(t *testing.T) {
 				NewMapFileIDMapper(),
 				symRepMockup,
 				&dummyProvider,
-				true, []libpf.PID{})
+				true)
 			require.NoError(t, err)
 
 			// Replace the internal hooks for the tests. These hooks catch the
@@ -589,7 +589,7 @@ func TestProcExit(t *testing.T) {
 				NewMapFileIDMapper(),
 				repMockup,
 				&dummyProvider,
-				true, []libpf.PID{})
+				true)
 			require.NoError(t, err)
 			defer cancel()
 

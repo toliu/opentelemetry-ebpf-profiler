@@ -7,7 +7,7 @@ package periodiccaller
 import (
 	"context"
 	"fmt"
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"go.opentelemetry.io/ebpf-profiler/libpf"
 	"os"
 	"runtime"
 	"strings"

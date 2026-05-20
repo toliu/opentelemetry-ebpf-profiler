@@ -7,10 +7,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/pdata/pprofile"
 
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/xsync"
-	"github.com/toliu/opentelemetry-ebpf-profiler/reporter/samples"
-	"github.com/toliu/opentelemetry-ebpf-profiler/support"
+	"go.opentelemetry.io/ebpf-profiler/libpf"
+	"go.opentelemetry.io/ebpf-profiler/libpf/xsync"
+	"go.opentelemetry.io/ebpf-profiler/reporter/samples"
+	"go.opentelemetry.io/ebpf-profiler/support"
 )
 
 func TestGetStringMapIndex(t *testing.T) {

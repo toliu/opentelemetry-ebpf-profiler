@@ -15,14 +15,14 @@ import (
 
 	cebpf "github.com/cilium/ebpf"
 
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/xsync"
-	"github.com/toliu/opentelemetry-ebpf-profiler/nativeunwind/elfunwindinfo"
-	"github.com/toliu/opentelemetry-ebpf-profiler/process"
-	pm "github.com/toliu/opentelemetry-ebpf-profiler/processmanager"
-	"github.com/toliu/opentelemetry-ebpf-profiler/reporter"
-	"github.com/toliu/opentelemetry-ebpf-profiler/support"
-	tracertypes "github.com/toliu/opentelemetry-ebpf-profiler/tracer/types"
+	"go.opentelemetry.io/ebpf-profiler/libpf"
+	"go.opentelemetry.io/ebpf-profiler/libpf/xsync"
+	"go.opentelemetry.io/ebpf-profiler/nativeunwind/elfunwindinfo"
+	"go.opentelemetry.io/ebpf-profiler/process"
+	pm "go.opentelemetry.io/ebpf-profiler/processmanager"
+	"go.opentelemetry.io/ebpf-profiler/reporter"
+	"go.opentelemetry.io/ebpf-profiler/support"
+	tracertypes "go.opentelemetry.io/ebpf-profiler/tracer/types"
 )
 
 // #include <stdlib.h>
@@ -189,7 +189,7 @@ func ExtractTraces(ctx context.Context, pr process.Process, debug bool,
 	includeTracers, _ := tracertypes.Parse("all")
 
 	manager, err := pm.New(todo, includeTracers, monitorInterval, &coredumpEbpfMaps,
-		pm.NewMapFileIDMapper(), symCache, elfunwindinfo.NewStackDeltaProvider(), false, nil) //todo ?
+		pm.NewMapFileIDMapper(), symCache, elfunwindinfo.NewStackDeltaProvider(), false) //todo ?
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Interpreter manager: %v", err)
 	}

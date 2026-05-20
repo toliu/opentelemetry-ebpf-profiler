@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package tracer // import "github.com/toliu/opentelemetry-ebpf-profiler/tracer"
+package tracer // import "go.opentelemetry.io/ebpf-profiler/tracer"
 
 import (
 	"encoding/binary"
@@ -12,16 +12,16 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/toliu/opentelemetry-ebpf-profiler/rlimit"
-	"github.com/toliu/opentelemetry-ebpf-profiler/tracer/types"
+	"go.opentelemetry.io/ebpf-profiler/rlimit"
+	"go.opentelemetry.io/ebpf-profiler/tracer/types"
 
 	cebpf "github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/btf"
 	"github.com/cilium/ebpf/link"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
-	"github.com/toliu/opentelemetry-ebpf-profiler/pacmask"
+	"go.opentelemetry.io/ebpf-profiler/libpf"
+	"go.opentelemetry.io/ebpf-profiler/pacmask"
 )
 
 // #include "../support/ebpf/types.h"
@@ -317,4 +317,22 @@ func loadSystemConfig(coll *cebpf.CollectionSpec, maps map[string]*cebpf.Map,
 	key0 := uint32(0)
 	return maps["system_config"].Update(unsafe.Pointer(&key0), unsafe.Pointer(&syscfg),
 		cebpf.UpdateAny)
+}
+
+func updateSystemConfig(m *cebpf.Map, offCpuThreshold *uint32, memBlock *uint64) error {
+	if offCpuThreshold == nil && memBlock == nil {
+		return nil
+	}
+	key0 := uint32(0)
+	var syscfg C.SystemConfig
+	if err := m.Lookup(unsafe.Pointer(&key0), unsafe.Pointer(&syscfg)); err != nil {
+		return err
+	}
+	if offCpuThreshold != nil {
+		syscfg.off_cpu_threshold = C.u32(*offCpuThreshold)
+	}
+	if memBlock != nil {
+		syscfg.mem_profile_threshold = C.u64(*memBlock)
+	}
+	return m.Update(unsafe.Pointer(&key0), unsafe.Pointer(&syscfg), cebpf.UpdateAny)
 }

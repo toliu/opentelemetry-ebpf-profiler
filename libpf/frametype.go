@@ -1,10 +1,10 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package libpf // import "github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+package libpf // import "go.opentelemetry.io/ebpf-profiler/libpf"
 
 import (
-	"github.com/toliu/opentelemetry-ebpf-profiler/support"
+	"go.opentelemetry.io/ebpf-profiler/support"
 )
 
 // FrameType defines the type of frame. This usually corresponds to the interpreter type that

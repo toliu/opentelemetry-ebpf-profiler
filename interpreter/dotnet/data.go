@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package dotnet // import "github.com/toliu/opentelemetry-ebpf-profiler/interpreter/dotnet"
+package dotnet // import "go.opentelemetry.io/ebpf-profiler/interpreter/dotnet"
 
 import (
 	"fmt"
@@ -11,10 +11,10 @@ import (
 
 	"github.com/elastic/go-freelru"
 
-	"github.com/toliu/opentelemetry-ebpf-profiler/interpreter"
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
-	"github.com/toliu/opentelemetry-ebpf-profiler/remotememory"
-	"github.com/toliu/opentelemetry-ebpf-profiler/support"
+	"go.opentelemetry.io/ebpf-profiler/interpreter"
+	"go.opentelemetry.io/ebpf-profiler/libpf"
+	"go.opentelemetry.io/ebpf-profiler/remotememory"
+	"go.opentelemetry.io/ebpf-profiler/support"
 )
 
 type dotnetData struct {

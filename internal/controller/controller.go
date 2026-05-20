@@ -1,22 +1,23 @@
-package controller // import "github.com/toliu/opentelemetry-ebpf-profiler/internal/controller"
+package controller // import "go.opentelemetry.io/ebpf-profiler/internal/controller"
 
 import (
 	"context"
 	"fmt"
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
 	"time"
+
+	"go.opentelemetry.io/ebpf-profiler/libpf"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/tklauser/numcpus"
 
-	"github.com/toliu/opentelemetry-ebpf-profiler/host"
-	"github.com/toliu/opentelemetry-ebpf-profiler/metrics"
-	"github.com/toliu/opentelemetry-ebpf-profiler/reporter"
-	"github.com/toliu/opentelemetry-ebpf-profiler/times"
-	"github.com/toliu/opentelemetry-ebpf-profiler/tracehandler"
-	"github.com/toliu/opentelemetry-ebpf-profiler/tracer"
-	tracertypes "github.com/toliu/opentelemetry-ebpf-profiler/tracer/types"
-	"github.com/toliu/opentelemetry-ebpf-profiler/util"
+	"go.opentelemetry.io/ebpf-profiler/host"
+	"go.opentelemetry.io/ebpf-profiler/metrics"
+	"go.opentelemetry.io/ebpf-profiler/reporter"
+	"go.opentelemetry.io/ebpf-profiler/times"
+	"go.opentelemetry.io/ebpf-profiler/tracehandler"
+	"go.opentelemetry.io/ebpf-profiler/tracer"
+	tracertypes "go.opentelemetry.io/ebpf-profiler/tracer/types"
+	"go.opentelemetry.io/ebpf-profiler/util"
 )
 
 const MiB = 1 << 20
@@ -85,9 +86,7 @@ func (c *Controller) Start(ctx context.Context) error {
 		BPFVerifierLogLevel:    uint32(c.config.BpfVerifierLogLevel),
 		ProbabilisticInterval:  c.config.ProbabilisticInterval,
 		ProbabilisticThreshold: c.config.ProbabilisticThreshold,
-		OffCPUThreshold:        uint32(c.config.OffCPUThreshold),
 		TargetPIDs:             c.config.TargetPIDs,
-		MemProfileBlock:        c.config.MemProfileBlock,
 	})
 	if err != nil {
 		c.reporter.Stop()
@@ -163,7 +162,7 @@ func (c *Controller) Shutdown() {
 }
 
 func (c *Controller) SyncTargetPIDs(targetPids map[libpf.PID]bool) error {
-	return c.tracer.SyncTargetPIDs(targetPids)
+	return nil
 }
 
 func (c *Controller) SyncMemTargetPIDs(targetPids map[libpf.PID]bool) {

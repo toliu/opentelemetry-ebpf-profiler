@@ -3,23 +3,24 @@
 
 // Package tracehandler converts raw BPF traces into the enriched user-mode
 // format and then forwards them to the reporter.
-package tracehandler // import "github.com/toliu/opentelemetry-ebpf-profiler/tracehandler"
+package tracehandler // import "go.opentelemetry.io/ebpf-profiler/tracehandler"
 
 import (
 	"context"
 	"fmt"
-	"github.com/toliu/opentelemetry-ebpf-profiler/support"
 	"time"
+
+	"go.opentelemetry.io/ebpf-profiler/support"
 
 	lru "github.com/elastic/go-freelru"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/toliu/opentelemetry-ebpf-profiler/reporter/samples"
-	"github.com/toliu/opentelemetry-ebpf-profiler/times"
+	"go.opentelemetry.io/ebpf-profiler/reporter/samples"
+	"go.opentelemetry.io/ebpf-profiler/times"
 
-	"github.com/toliu/opentelemetry-ebpf-profiler/host"
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
-	"github.com/toliu/opentelemetry-ebpf-profiler/reporter"
+	"go.opentelemetry.io/ebpf-profiler/host"
+	"go.opentelemetry.io/ebpf-profiler/libpf"
+	"go.opentelemetry.io/ebpf-profiler/reporter"
 )
 
 // metadataWarnInhibDuration defines the minimum duration between warnings printed

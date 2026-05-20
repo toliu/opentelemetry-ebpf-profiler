@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/readatbuf"
-	"github.com/toliu/opentelemetry-ebpf-profiler/testsupport"
+	"go.opentelemetry.io/ebpf-profiler/libpf/readatbuf"
+	"go.opentelemetry.io/ebpf-profiler/testsupport"
 )
 
 func testVariant(t *testing.T, fileSize, granularity, cacheSize uint) {

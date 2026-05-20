@@ -18,13 +18,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/toliu/opentelemetry-ebpf-profiler/host"
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
-	"github.com/toliu/opentelemetry-ebpf-profiler/proc"
-	"github.com/toliu/opentelemetry-ebpf-profiler/reporter"
-	"github.com/toliu/opentelemetry-ebpf-profiler/rlimit"
-	"github.com/toliu/opentelemetry-ebpf-profiler/support"
-	tracertypes "github.com/toliu/opentelemetry-ebpf-profiler/tracer/types"
+	"go.opentelemetry.io/ebpf-profiler/host"
+	"go.opentelemetry.io/ebpf-profiler/libpf"
+	"go.opentelemetry.io/ebpf-profiler/proc"
+	"go.opentelemetry.io/ebpf-profiler/reporter"
+	"go.opentelemetry.io/ebpf-profiler/rlimit"
+	"go.opentelemetry.io/ebpf-profiler/support"
+	tracertypes "go.opentelemetry.io/ebpf-profiler/tracer/types"
 )
 
 // forceContextSwitch makes sure two Go threads are running concurrently
@@ -136,7 +136,6 @@ func TestTraceTransmissionAndParsing(t *testing.T) {
 		BPFVerifierLogLevel:    0,
 		ProbabilisticInterval:  100,
 		ProbabilisticThreshold: 100,
-		OffCPUThreshold:        support.OffCPUThresholdMax,
 	})
 	require.NoError(t, err)
 
@@ -263,7 +262,6 @@ func TestAllTracers(t *testing.T) {
 		KernelVersionCheck:  false,
 		DebugTracer:         false,
 		BPFVerifierLogLevel: 0,
-		OffCPUThreshold:     10,
 	})
 	require.NoError(t, err)
 }

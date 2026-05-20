@@ -9,8 +9,6 @@
 #include "frametypes.h"
 #include "types.h"
 
-#define PROCESS_FILTER_KEY 0
-
 // MULTI_USE_FUNC generates perf event and kprobe eBPF programs
 // for a given function.
 #define MULTI_USE_FUNC(func_name)                                                                  \
@@ -685,11 +683,8 @@ get_usermode_regs(struct pt_regs *ctx, UnwindState *state, bool *has_usermode_re
 
 static inline __attribute__((__always_inline__)) bool should_trace_pid(u32 pid)
 {
-  u32 key_zero = PROCESS_FILTER_KEY;
-  if (!bpf_map_lookup_elem(&target_pids, &key_zero) || bpf_map_lookup_elem(&target_pids, &pid)) {
-    return true;
-  }
-  return false;
+  u32 key0 = 0;
+  return bpf_map_lookup_elem(&target_pids, &key0) || bpf_map_lookup_elem(&target_pids, &pid);
 }
 
 static inline __attribute__((__always_inline__)) int handle_mem_free(struct pt_regs *ctx)

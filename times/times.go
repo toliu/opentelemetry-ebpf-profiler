@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package times // import "github.com/toliu/opentelemetry-ebpf-profiler/times"
+package times // import "go.opentelemetry.io/ebpf-profiler/times"
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/toliu/opentelemetry-ebpf-profiler/periodiccaller"
+	"go.opentelemetry.io/ebpf-profiler/periodiccaller"
 )
 
 const (

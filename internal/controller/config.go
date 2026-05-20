@@ -1,18 +1,18 @@
-package controller // import "github.com/toliu/opentelemetry-ebpf-profiler/internal/controller"
+package controller // import "go.opentelemetry.io/ebpf-profiler/internal/controller"
 
 import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"go.opentelemetry.io/ebpf-profiler/libpf"
 	"runtime"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/toliu/opentelemetry-ebpf-profiler/reporter"
-	"github.com/toliu/opentelemetry-ebpf-profiler/support"
-	"github.com/toliu/opentelemetry-ebpf-profiler/tracer"
+	"go.opentelemetry.io/ebpf-profiler/reporter"
+	"go.opentelemetry.io/ebpf-profiler/support"
+	"go.opentelemetry.io/ebpf-profiler/tracer"
 )
 
 type Config struct {

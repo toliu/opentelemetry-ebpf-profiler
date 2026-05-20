@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package metrics // import "github.com/toliu/opentelemetry-ebpf-profiler/metrics"
+package metrics // import "go.opentelemetry.io/ebpf-profiler/metrics"
 
 import (
 	"bytes"
@@ -13,8 +13,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
-	"github.com/toliu/opentelemetry-ebpf-profiler/vc"
+	"go.opentelemetry.io/ebpf-profiler/libpf"
+	"go.opentelemetry.io/ebpf-profiler/vc"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 )
@@ -43,7 +43,7 @@ var (
 	metricTypes map[MetricID]MetricType
 
 	// OTel metric instrumentation
-	meter = otel.Meter("github.com/toliu/opentelemetry-ebpf-profiler",
+	meter = otel.Meter("go.opentelemetry.io/ebpf-profiler",
 		metric.WithInstrumentationVersion(vc.Version()))
 	counters = map[MetricID]metric.Int64Counter{}
 	gauges   = map[MetricID]metric.Int64Gauge{}

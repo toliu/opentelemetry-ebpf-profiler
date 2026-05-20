@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package processmanager manages the loading and unloading of information related to processes.
-package processmanager // import "github.com/toliu/opentelemetry-ebpf-profiler/processmanager"
+package processmanager // import "go.opentelemetry.io/ebpf-profiler/processmanager"
 
 import (
 	"context"
@@ -13,23 +13,24 @@ import (
 	lru "github.com/elastic/go-freelru"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/toliu/opentelemetry-ebpf-profiler/tracer/types"
+	"go.opentelemetry.io/ebpf-profiler/support"
+	"go.opentelemetry.io/ebpf-profiler/tracer/types"
 
-	"github.com/toliu/opentelemetry-ebpf-profiler/host"
-	"github.com/toliu/opentelemetry-ebpf-profiler/interpreter"
-	"github.com/toliu/opentelemetry-ebpf-profiler/interpreter/apmint"
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
-	"github.com/toliu/opentelemetry-ebpf-profiler/lpm"
-	"github.com/toliu/opentelemetry-ebpf-profiler/metrics"
-	"github.com/toliu/opentelemetry-ebpf-profiler/nativeunwind"
-	sdtypes "github.com/toliu/opentelemetry-ebpf-profiler/nativeunwind/stackdeltatypes"
-	"github.com/toliu/opentelemetry-ebpf-profiler/periodiccaller"
-	pmebpf "github.com/toliu/opentelemetry-ebpf-profiler/processmanager/ebpf"
-	eim "github.com/toliu/opentelemetry-ebpf-profiler/processmanager/execinfomanager"
-	"github.com/toliu/opentelemetry-ebpf-profiler/reporter"
-	"github.com/toliu/opentelemetry-ebpf-profiler/times"
-	"github.com/toliu/opentelemetry-ebpf-profiler/traceutil"
-	"github.com/toliu/opentelemetry-ebpf-profiler/util"
+	"go.opentelemetry.io/ebpf-profiler/host"
+	"go.opentelemetry.io/ebpf-profiler/interpreter"
+	"go.opentelemetry.io/ebpf-profiler/interpreter/apmint"
+	"go.opentelemetry.io/ebpf-profiler/libpf"
+	"go.opentelemetry.io/ebpf-profiler/lpm"
+	"go.opentelemetry.io/ebpf-profiler/metrics"
+	"go.opentelemetry.io/ebpf-profiler/nativeunwind"
+	sdtypes "go.opentelemetry.io/ebpf-profiler/nativeunwind/stackdeltatypes"
+	"go.opentelemetry.io/ebpf-profiler/periodiccaller"
+	pmebpf "go.opentelemetry.io/ebpf-profiler/processmanager/ebpf"
+	eim "go.opentelemetry.io/ebpf-profiler/processmanager/execinfomanager"
+	"go.opentelemetry.io/ebpf-profiler/reporter"
+	"go.opentelemetry.io/ebpf-profiler/times"
+	"go.opentelemetry.io/ebpf-profiler/traceutil"
+	"go.opentelemetry.io/ebpf-profiler/util"
 )
 
 const (
@@ -66,7 +67,7 @@ var (
 // implementation.
 func New(ctx context.Context, includeTracers types.IncludedTracers, monitorInterval time.Duration,
 	ebpf pmebpf.EbpfHandler, fileIDMapper FileIDMapper, symbolReporter reporter.SymbolReporter,
-	sdp nativeunwind.StackDeltaProvider, filterErrorFrames bool, targetPids map[libpf.PID]bool) (*ProcessManager, error) {
+	sdp nativeunwind.StackDeltaProvider, filterErrorFrames bool) (*ProcessManager, error) {
 	if fileIDMapper == nil {
 		var err error
 		fileIDMapper, err = newFileIDMapper(lruFileIDCacheSize)
@@ -101,7 +102,6 @@ func New(ctx context.Context, includeTracers types.IncludedTracers, monitorInter
 		reporter:                 symbolReporter,
 		metricsAddSlice:          metrics.AddSlice,
 		filterErrorFrames:        filterErrorFrames,
-		targetPids:               targetPids,
 	}
 
 	collectInterpreterMetrics(ctx, pm, monitorInterval)
@@ -280,13 +280,18 @@ func (pm *ProcessManager) ConvertTrace(trace *host.Trace) (newTrace *libpf.Trace
 			newTrace.AppendFrameFull(frame.Type, fileID,
 				relativeRIP, mappingStart, mappingEnd, fileOffset)
 		default:
-			err := pm.symbolizeFrame(i, trace, newTrace)
-			if err != nil {
-				log.Tracef(
-					"symbolization failed for PID %d, frame %d/%d, frame type %d: %v",
-					trace.PID, i, traceLen, frame.Type, err)
+			// jvm内存profiling已经在hotspot的内存tracer中完成，这里再处理，反而会出错
+			if frame.Type == libpf.HotSpotFrame && trace.Origin == support.TraceOriginHeap {
+				newTrace.AppendFrameID(libpf.HotSpotFrame, libpf.NewFrameID(libpf.NewFileID(uint64(frame.File), 0), frame.Lineno))
+			} else {
+				err := pm.symbolizeFrame(i, trace, newTrace)
+				if err != nil {
+					log.Tracef(
+						"symbolization failed for PID %d, frame %d/%d, frame type %d: %v",
+						trace.PID, i, traceLen, frame.Type, err)
 
-				newTrace.AppendFrame(frame.Type, libpf.UnsymbolizedFileID, libpf.AddressOrLineno(0))
+					newTrace.AppendFrame(frame.Type, libpf.UnsymbolizedFileID, libpf.AddressOrLineno(0))
+				}
 			}
 		}
 	}
@@ -323,15 +328,10 @@ func (pm *ProcessManager) MaybeNotifyAPMAgent(
 	return serviceName
 }
 
-func (pm *ProcessManager) ConfigureTargetPids() error {
+func (pm *ProcessManager) UpdateTargetPid(add, remove []uint32) error {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
-	return pm.ebpf.ConfigureTargetPIDs(pm.targetPids)
-}
-
-func (pm *ProcessManager) SyncTargetPids(targetPids map[libpf.PID]bool) error {
-	pm.targetPids = targetPids
-	return pm.ConfigureTargetPids()
+	return pm.ebpf.UpdateTargetPIDs(add, remove)
 }
 
 // AddSynthIntervalData adds synthetic stack deltas to the manager. This is useful for cases where

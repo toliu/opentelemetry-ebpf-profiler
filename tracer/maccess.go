@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package tracer // import "github.com/toliu/opentelemetry-ebpf-profiler/tracer"
+package tracer // import "go.opentelemetry.io/ebpf-profiler/tracer"
 
 import (
 	"errors"
@@ -9,8 +9,8 @@ import (
 	"runtime"
 
 	cebpf "github.com/cilium/ebpf"
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
-	"github.com/toliu/opentelemetry-ebpf-profiler/maccess"
+	"go.opentelemetry.io/ebpf-profiler/libpf"
+	"go.opentelemetry.io/ebpf-profiler/maccess"
 )
 
 // checkForMmaccessPatch validates if a Linux kernel function is patched by

@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/toliu/opentelemetry-ebpf-profiler/testsupport"
+	"go.opentelemetry.io/ebpf-profiler/testsupport"
 )
 
 func assertFileToVA(t *testing.T, mapper AddressMapper, fileAddress, virtualAddress uint64) {

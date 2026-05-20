@@ -13,7 +13,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/xsync"
+	"go.opentelemetry.io/ebpf-profiler/libpf/xsync"
 )
 
 func TestOnceLock(t *testing.T) {

@@ -3,7 +3,7 @@
 
 // Package proc provides functionality for retrieving kallsyms, modules and
 // executable mappings via /proc.
-package proc // import "github.com/toliu/opentelemetry-ebpf-profiler/proc"
+package proc // import "go.opentelemetry.io/ebpf-profiler/proc"
 
 import (
 	"bufio"
@@ -16,8 +16,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
-	"github.com/toliu/opentelemetry-ebpf-profiler/stringutil"
+	"go.opentelemetry.io/ebpf-profiler/libpf"
+	"go.opentelemetry.io/ebpf-profiler/stringutil"
 )
 
 const defaultMountPoint = "/proc"

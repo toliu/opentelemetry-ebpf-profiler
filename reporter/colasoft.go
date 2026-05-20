@@ -3,10 +3,10 @@ package reporter
 import (
 	"context"
 	log "github.com/sirupsen/logrus"
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
-	"github.com/toliu/opentelemetry-ebpf-profiler/reporter/hotspotmem"
-	"github.com/toliu/opentelemetry-ebpf-profiler/reporter/samples"
-	"github.com/toliu/opentelemetry-ebpf-profiler/support"
+	"go.opentelemetry.io/ebpf-profiler/libpf"
+	"go.opentelemetry.io/ebpf-profiler/reporter/hotspotmem"
+	"go.opentelemetry.io/ebpf-profiler/reporter/samples"
+	"go.opentelemetry.io/ebpf-profiler/support"
 	"go.opentelemetry.io/collector/pdata/pprofile"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"maps"
@@ -267,7 +267,7 @@ func (c *ColaSoft) StartHotspotMemProfiling(cfg *hotspotmem.OTLPProfilerConfig) 
 	ctx, cancel := context.WithCancel(c.ctx)
 	err := hotspotmem.StartMemAllocProfilingOTLP(ctx, cfg, c.hotspotMemProfileChan)
 	if err != nil {
-		log.Infof("Failed to start profiling: %v", err)
+		log.Tracef("Failed to start profiling: %v", err)
 		cancel()
 		return err
 	}

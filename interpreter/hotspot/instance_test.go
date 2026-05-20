@@ -12,9 +12,9 @@ import (
 	"github.com/elastic/go-freelru"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
-	"github.com/toliu/opentelemetry-ebpf-profiler/lpm"
-	"github.com/toliu/opentelemetry-ebpf-profiler/remotememory"
+	"go.opentelemetry.io/ebpf-profiler/libpf"
+	"go.opentelemetry.io/ebpf-profiler/lpm"
+	"go.opentelemetry.io/ebpf-profiler/remotememory"
 )
 
 func TestJavaSymbolExtraction(t *testing.T) {

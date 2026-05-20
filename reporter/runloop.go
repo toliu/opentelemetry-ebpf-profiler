@@ -1,13 +1,13 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package reporter // import "github.com/toliu/opentelemetry-ebpf-profiler/reporter"
+package reporter // import "go.opentelemetry.io/ebpf-profiler/reporter"
 
 import (
 	"context"
 	"time"
 
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	"go.opentelemetry.io/ebpf-profiler/libpf"
 )
 
 // runLoop implements the run loop for all reporters

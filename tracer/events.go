@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package tracer // import "github.com/toliu/opentelemetry-ebpf-profiler/tracer"
+package tracer // import "go.opentelemetry.io/ebpf-profiler/tracer"
 
 import (
 	"context"
@@ -15,11 +15,11 @@ import (
 	"github.com/cilium/ebpf/perf"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/toliu/opentelemetry-ebpf-profiler/host"
-	"github.com/toliu/opentelemetry-ebpf-profiler/metrics"
-	"github.com/toliu/opentelemetry-ebpf-profiler/process"
-	"github.com/toliu/opentelemetry-ebpf-profiler/support"
-	"github.com/toliu/opentelemetry-ebpf-profiler/times"
+	"go.opentelemetry.io/ebpf-profiler/host"
+	"go.opentelemetry.io/ebpf-profiler/metrics"
+	"go.opentelemetry.io/ebpf-profiler/process"
+	"go.opentelemetry.io/ebpf-profiler/support"
+	"go.opentelemetry.io/ebpf-profiler/times"
 )
 
 /*
@@ -33,8 +33,7 @@ const (
 	// consuming goroutine doesn't go idle due to scheduling, but small enough
 	// so that the hostagent startup phase can wait on most PID notifications
 	// to be processed before starting the tracer.
-	pidEventBufferSize           = 10
-	defaultMemProfileSampleCount = 128
+	pidEventBufferSize = 10
 )
 
 // StartPIDEventProcessor spawns a goroutine to process PID events.
@@ -52,17 +51,11 @@ func (t *Tracer) processPIDEvents(ctx context.Context) {
 			if !ok {
 				return
 			}
-			// 避免profile退出后还一直处理pidEvent, 打印许多异常且可能造成崩溃
-			select {
-			case <-ctx.Done():
-				continue
-			default:
-				t.processManager.SynchronizeProcess(process.New(pid))
-			}
+			t.processManager.SynchronizeProcess(process.New(pid))
 		case <-pidCleanupTicker.C:
 			t.processManager.CleanupPIDs()
-			//case <-ctx.Done():
-			//	return
+		case <-ctx.Done():
+			return
 		}
 	}
 }
@@ -150,14 +143,7 @@ func startPerfEventMonitor(ctx context.Context, perfEventMap *ebpf.Map,
 func (t *Tracer) startTraceEventMonitor(ctx context.Context,
 	traceOutChan chan<- *host.Trace) func() []metrics.Metric {
 	eventsMap := t.ebpfMaps["trace_events"]
-	sampleCount := 0
-	if t.samplesPerSecond > 0 {
-		sampleCount += t.samplesPerSecond
-	}
-	if t.memProfileBlock.Load() > 0 {
-		// 开启内存profile的时候，默认多缓存128个样本的trace
-		sampleCount += defaultMemProfileSampleCount
-	}
+	sampleCount := 512
 	eventReader, err := perf.NewReader(eventsMap, sampleCount*int(unsafe.Sizeof(C.Trace{})))
 	if err != nil {
 		log.Fatalf("Failed to setup perf reporting via %s: %v", eventsMap, err)

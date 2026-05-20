@@ -1,89 +1,56 @@
 package colasoft
 
 import (
-	"context"
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
 	"time"
 
-	"github.com/toliu/opentelemetry-ebpf-profiler/internal/controller"
-	"github.com/toliu/opentelemetry-ebpf-profiler/reporter"
-	"github.com/toliu/opentelemetry-ebpf-profiler/tracer"
+	"go.opentelemetry.io/collector/pdata/pprofile"
+
+	"go.opentelemetry.io/ebpf-profiler/libpf"
+	"go.opentelemetry.io/ebpf-profiler/reporter"
+	"go.opentelemetry.io/ebpf-profiler/reporter/samples"
 )
 
 type (
-	Collector struct {
-		sr SymbolReporter
-
-		ctrl     *controller.Controller
-		reporter *reporter.ColaSoft
-		cfg      *controller.Config
+	PIDState map[uint32]bool
+	State    struct {
+		Overload bool
+		Interval time.Duration
+		CPU      struct {
+			OnFrequency, OffThreshold int64
+			PIDs                      PIDState
+		}
+		Memory struct {
+			Block uint64
+			PIDs  PIDState
+		}
 	}
+	Controller interface {
+		samples.SampleAttrProducer
+		ExecutableKnown(fileID libpf.FileID) bool
+		ExecutableMetadata(args *reporter.ExecutableMetadataArgs)
 
-	StartCfg struct {
-		Freq, OffCpuThreshold, CacheEventSTolerance int
-		Interval, CacheEventSTimeout                time.Duration
-		TargetPids, MemTargetPIDs                   map[libpf.PID]bool
-		MemProfileBlock                             uint64
+		State() State
+		TimeOffset() time.Duration
+		ConsumeProfiles(tds map[uint32]pprofile.Profiles)
+		Symbolization(map[libpf.FrameID]*samples.SourceInfo)
 	}
 )
 
-func NewCollector(sr SymbolReporter) *Collector { return &Collector{sr: sr} }
+func (s State) Enable() bool {
+	enable := s.CPU.OnFrequency > 0 || s.CPU.OffThreshold > 0 || s.Memory.Block > 0
+	return !s.Overload && enable
+}
 
-func (c *Collector) Start(ctx context.Context, cfg StartCfg) error {
-	if c.cfg != nil {
-		if c.cfg.ReporterInterval == cfg.Interval &&
-			c.cfg.SamplesPerSecond == cfg.Freq &&
-			c.cfg.OffCPUThreshold == uint(cfg.OffCpuThreshold) &&
-			c.cfg.MemProfileBlock == cfg.MemProfileBlock {
-			return nil
+func (p PIDState) Compare(o PIDState) (add, remove []uint32) {
+	for pid := range p {
+		if _, ok := o[pid]; !ok {
+			remove = append(remove, pid)
 		}
-		c.Stop()
 	}
-
-	rpt, err := reporter.NewColaSoft(cfg.Freq, cfg.Interval, c.sr, c.sr.ConsumeProfilesFunc, noFrameOpSymbolReporter{c.sr}, cfg.CacheEventSTolerance, cfg.CacheEventSTimeout)
-	if err != nil {
-		return err
+	for pid := range o {
+		if _, ok := p[pid]; !ok {
+			add = append(add, pid)
+		}
 	}
-
-	controllerCfg := &controller.Config{
-		MonitorInterval: time.Second * 5, ClockSyncInterval: time.Minute * 3,
-		NoKernelVersionCheck: true, ProbabilisticInterval: time.Minute,
-		ProbabilisticThreshold: tracer.ProbabilisticThresholdMax * 2,
-		ReporterInterval:       cfg.Interval, SamplesPerSecond: cfg.Freq, Reporter: rpt,
-		Tracers:         "perl,php,python,hotspot,ruby,v8",
-		OffCPUThreshold: uint(cfg.OffCpuThreshold),
-		TargetPIDs:      cfg.TargetPids,
-		MemTargetPIDs:   cfg.MemTargetPIDs,
-		MemProfileBlock: cfg.MemProfileBlock,
-	}
-	ctrl := controller.New(controllerCfg)
-	if err = ctrl.Start(ctx); err != nil {
-		return err
-	}
-	c.ctrl = ctrl
-	c.reporter = rpt
-	c.cfg = controllerCfg
-	return nil
-}
-
-func (c *Collector) Stop() {
-	if c.ctrl != nil {
-		c.ctrl.Shutdown()
-		c.ctrl = nil
-		c.reporter = nil
-		c.cfg = nil
-	}
-}
-
-func (c *Collector) SyncTargetPIDs(targetPIds map[libpf.PID]bool) error {
-	return c.ctrl.SyncTargetPIDs(targetPIds)
-}
-
-func (c *Collector) SyncMemTargetPIDs(targetPIds map[libpf.PID]bool) error {
-	c.ctrl.SyncMemTargetPIDs(targetPIds)
-	return nil
-}
-
-func (c *Collector) SyncMemProfileBlock(memProfileBlock uint64) error {
-	return c.ctrl.SyncMemProfileBlock(memProfileBlock)
+	return
 }

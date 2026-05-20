@@ -1,9 +1,9 @@
-package helpers // import "github.com/toliu/opentelemetry-ebpf-profiler/internal/helpers"
+package helpers // import "go.opentelemetry.io/ebpf-profiler/internal/helpers"
 
 import (
 	"fmt"
 
-	"github.com/toliu/opentelemetry-ebpf-profiler/tracer"
+	"go.opentelemetry.io/ebpf-profiler/tracer"
 )
 
 // GetKernelVersion returns the current version of the kernel

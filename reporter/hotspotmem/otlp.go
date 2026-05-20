@@ -76,7 +76,7 @@ func StartMemAllocProfilingOTLP(ctx context.Context, config *OTLPProfilerConfig,
 		return fmt.Errorf("failed to start profiling: %w", err)
 	}
 	log.Tracef("start hot spot mem profiling: %s", response)
-	log.Infof("hotspot mem profiling on pid(%d) with command: %s", config.PID, startCmd)
+	log.Tracef("hotspot mem profiling on pid(%d) with command: %s", config.PID, startCmd)
 
 	// 启动 dump 协程
 	go func() {
@@ -103,7 +103,7 @@ func StartMemAllocProfilingOTLP(ctx context.Context, config *OTLPProfilerConfig,
 				// 执行 dump 命令
 				_, err := attacher.loadAgent(dumpCmd)
 				if err != nil {
-					log.Infof(" Failed to dump hotspot profile: %v", err)
+					log.Tracef(" Failed to dump hotspot profile: %v", err)
 					return
 				}
 				// 等待文件写入完成, 动态库会把数据写入文件，然后我们读出来解析，

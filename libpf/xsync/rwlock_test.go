@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf/xsync"
+	"go.opentelemetry.io/ebpf-profiler/libpf/xsync"
 )
 
 type SharedResourceMutable struct {

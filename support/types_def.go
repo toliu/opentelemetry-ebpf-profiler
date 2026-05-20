@@ -3,7 +3,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package support // import "github.com/toliu/opentelemetry-ebpf-profiler/support"
+package support // import "go.opentelemetry.io/ebpf-profiler/support"
 
 /*
 #include "./ebpf/types.h"
@@ -24,6 +24,7 @@ const (
 	FrameMarkerPerl     = C.FRAME_MARKER_PERL
 	FrameMarkerV8       = C.FRAME_MARKER_V8
 	FrameMarkerDotnet   = C.FRAME_MARKER_DOTNET
+	FrameMarkerGolang   = C.FRAME_MARKER_GOLANG
 	FrameMarkerAbort    = C.FRAME_MARKER_ABORT
 )
 
@@ -90,6 +91,7 @@ const (
 	TraceOriginUnknown  = C.TRACE_UNKNOWN
 	TraceOriginSampling = C.TRACE_SAMPLING
 	TraceOriginOffCPU   = C.TRACE_OFF_CPU
+	TraceOriginHeap     = C.TRACE_HEAP_ALLOC
 )
 
 const OffCPUThresholdMax = C.OFF_CPU_THRESHOLD_MAX

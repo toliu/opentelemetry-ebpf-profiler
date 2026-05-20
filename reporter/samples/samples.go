@@ -1,9 +1,9 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package samples // import "github.com/toliu/opentelemetry-ebpf-profiler/reporter/samples"
+package samples // import "go.opentelemetry.io/ebpf-profiler/reporter/samples"
 
-import "github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+import "go.opentelemetry.io/ebpf-profiler/libpf"
 
 type TraceEventMeta struct {
 	Timestamp      libpf.UnixTime64

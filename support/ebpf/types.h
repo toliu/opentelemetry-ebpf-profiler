@@ -338,6 +338,8 @@ typedef enum TraceOrigin {
   TRACE_SAMPLING,
   TRACE_OFF_CPU,
   TRACE_HEAP_ALLOC,
+  TRACE_CUDA_LAUNCH,
+  TRACE_CUDA_SYNCHRONIZE,
 } TraceOrigin;
 
 // OFF_CPU_THRESHOLD_MAX defines the maximum threshold.

@@ -34,12 +34,26 @@ ifeq ($(BUILD_TYPE),debug)
 	TARGET_FLAGS+=$(DEBUG_FLAGS)
 endif
 
+# Resolve the path to the parca-dev/usdt eBPF headers via the Go module
+# cache (honors any `replace` directive in go.mod). The headers
+# (usdt_defs.h, usdt_args.h) live there as the single source of truth and
+# are not duplicated in this repo.
+#
+# Lazy assignment (`=`, not `:=`): only computed when an actual compile
+# rule expands FLAGS, so `clean`/`format`/`lint` don't trigger it. We
+# `go mod download` first because `go list -m -f '{{.Dir}}'` does not
+# auto-download a specific module path on a cold cache.
+USDT_HEADERS = $(shell cd $(CURDIR)/../.. && \
+	go mod download github.com/parca-dev/usdt >/dev/null && \
+	go list -m -f '{{.Dir}}' github.com/parca-dev/usdt)/ebpf
+
 FLAGS=$(TARGET_FLAGS) \
 	-fno-jump-tables \
 	-nostdlib \
 	-nostdinc \
 	-ffreestanding \
 	-O2 -emit-llvm -c $< \
+	-I$(USDT_HEADERS) \
 	-Wall -Wextra -Werror \
 	-Wno-address-of-packed-member \
 	-Wno-unused-label \

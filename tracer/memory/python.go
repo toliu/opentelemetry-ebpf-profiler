@@ -5,6 +5,8 @@ import (
 
 	cebpf "github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
+
+	"go.opentelemetry.io/ebpf-profiler/libpf"
 )
 
 type pythonInterpreter struct {
@@ -55,3 +57,5 @@ func (p *pythonInterpreter) Close() error {
 	}
 	return errors.Join(errs...)
 }
+
+func (p *pythonInterpreter) Type() libpf.InterpreterType { return libpf.Python }

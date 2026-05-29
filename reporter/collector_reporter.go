@@ -6,7 +6,6 @@ package reporter // import "go.opentelemetry.io/ebpf-profiler/reporter"
 import (
 	"context"
 	"maps"
-	"runtime"
 	"time"
 
 	lru "github.com/elastic/go-freelru"
@@ -59,27 +58,23 @@ func NewCollector(cfg *Config, nextConsumer xconsumer.Profiles) (*CollectorRepor
 	}
 
 	originsMap := make(map[libpf.Origin]samples.KeyToEventMapping, 2)
-	for _, origin := range []libpf.Origin{support.TraceOriginSampling, support.TraceOriginOffCPU, support.TraceOriginHeap} {
+	for _, origin := range []libpf.Origin{support.TraceOriginSampling,
+		support.TraceOriginOffCPU} {
 		originsMap[origin] = make(samples.KeyToEventMapping)
 	}
 
 	return &CollectorReporter{
 		baseReporter: &baseReporter{
-			cfg:            cfg,
-			name:           cfg.Name,
-			version:        cfg.Version,
-			pdata:          data,
-			cgroupv2ID:     cgroupv2ID,
-			traceEvents:    xsync.NewRWMutex(originsMap),
-			memTraceEvents: xsync.NewRWMutex(originsMap),
-			hostmetadata:   hostmetadata,
+			cfg:          cfg,
+			name:         cfg.Name,
+			version:      cfg.Version,
+			pdata:        data,
+			cgroupv2ID:   cgroupv2ID,
+			traceEvents:  xsync.NewRWMutex(originsMap),
+			hostmetadata: hostmetadata,
 			runLoop: &runLoop{
 				stopSignal: make(chan libpf.Void),
 			},
-			memRunLoop: &runLoop{
-				stopSignal: make(chan libpf.Void),
-			},
-			addrHashMap: make(map[int64]libpf.TraceHash),
 		},
 		nextConsumer: nextConsumer,
 	}, nil
@@ -96,8 +91,7 @@ func (r *CollectorReporter) Start(ctx context.Context) error {
 	}, func() {
 		// Allow the GC to purge expired entries to avoid memory leaks.
 		r.pdata.Purge()
-		r.cgroupv2ID.Purge()
-		runtime.GC()
+		r.cgroupv2ID.PurgeExpired()
 	})
 
 	// When Stop() is called and a signal to 'stop' is received, then:

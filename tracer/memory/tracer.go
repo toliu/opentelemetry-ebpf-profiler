@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -20,6 +21,7 @@ import (
 
 type (
 	memoryInterpreter interface {
+		Type() libpf.InterpreterType
 		io.Closer
 	}
 
@@ -30,8 +32,9 @@ type (
 		reporter reporter.SymbolReporter
 		traceOut chan<- *host.Trace
 
-		block *atomic.Uint64
-		pids  xsync.RWMutex[map[uint32]memoryInterpreter]
+		block    *atomic.Uint64
+		pids     xsync.RWMutex[map[uint32]memoryInterpreter]
+		disabled xsync.RWMutex[map[libpf.InterpreterType]bool]
 	}
 )
 
@@ -40,13 +43,51 @@ func NewMemoryTracer(mgr *pm.ProcessManager, rpt reporter.SymbolReporter, progs 
 		pm:       mgr,
 		reporter: rpt,
 		pids:     xsync.NewRWMutex(make(map[uint32]memoryInterpreter)),
-		progs:    progs,
-		block:    new(atomic.Uint64),
+		disabled: xsync.NewRWMutex(map[libpf.InterpreterType]bool{
+			libpf.Python: true, // python
+			libpf.Native: true, // c
+		}),
+		progs: progs,
+		block: new(atomic.Uint64),
 	}
 }
 
 func (t *Tracer) SetTraceOut(out chan<- *host.Trace) { t.traceOut = out }
 func (t *Tracer) SetBlock(block uint64)              { t.block.Store(block) }
+func (t *Tracer) DisableInterpreter(m map[libpf.InterpreterType]bool) {
+	maps.DeleteFunc(m, func(interpreterType libpf.InterpreterType, b bool) bool { return !b })
+
+	disabled := t.disabled.WLock()
+	defer t.disabled.WUnlock(&disabled)
+	if maps.Equal(*disabled, m) {
+		return
+	}
+	pids := t.pids.WLock()
+	defer t.pids.WUnlock(&pids)
+	for typ := range *disabled {
+		if m[typ] {
+			continue
+		}
+		// 如果有新的启用，则重新判断全部unknown类型的
+		for pid, mi := range *pids {
+			if mi != nil && mi.Type() == libpf.UnknownInterp {
+				_ = mi.Close()
+				(*pids)[pid] = nil
+			}
+		}
+		break
+	}
+	for pid, mi := range *pids {
+		if mi == nil {
+			continue
+		}
+		if m[mi.Type()] {
+			_ = mi.Close()
+			(*pids)[pid] = nil
+		}
+	}
+	*disabled = m
+}
 
 func (t *Tracer) UpdateTargetPID(add, remove []uint32) {
 	pids := t.pids.WLock()
@@ -71,8 +112,12 @@ func (t *Tracer) MonitorMemProfilePids(keys *[]uint32) {
 	if t.block.Load() == 0 {
 		return
 	}
+	disabled := t.disabled.RLock()
+	defer t.disabled.RUnlock(&disabled)
+
 	pids := t.pids.WLock()
 	defer t.pids.WUnlock(&pids)
+
 	var trigger []uint32
 	for pid, mi := range *pids {
 		if mi != nil {
@@ -83,9 +128,20 @@ func (t *Tracer) MonitorMemProfilePids(keys *[]uint32) {
 			trigger = append(trigger, pid)
 			continue
 		}
+		lang := minfo.Lang
+		if lang == libpf.UnknownInterp {
+			if minfo.LibcPath == "" {
+				continue
+			}
+			lang = libpf.Native
+		}
 		mi = newUnsupportedInterpreter()
+		if (*disabled)[lang] {
+			(*pids)[pid] = mi
+			continue
+		}
 		var err error
-		switch minfo.Lang {
+		switch lang {
 		case libpf.Python:
 			if minfo.LibPythonPath == "" {
 				continue
@@ -96,8 +152,6 @@ func (t *Tracer) MonitorMemProfilePids(keys *[]uint32) {
 				continue
 			}
 			mi, err = newGolangInterpreter(minfo.ExecAbsPath, pid, t.progs)
-		case libpf.PHP, libpf.PHPJIT, libpf.Kernel, libpf.Ruby, libpf.Perl, libpf.V8, libpf.Dotnet:
-			mi = newUnsupportedInterpreter()
 		case libpf.HotSpot:
 			if t.traceOut != nil {
 				if minfo.MajorVersion == 0 {
@@ -121,7 +175,7 @@ func (t *Tracer) MonitorMemProfilePids(keys *[]uint32) {
 			} else {
 				err = fmt.Errorf("no trace channel for jvm pid(%d)", pid)
 			}
-		default:
+		case libpf.Native:
 			if minfo.LibcPath == "" {
 				continue
 			}
@@ -129,13 +183,12 @@ func (t *Tracer) MonitorMemProfilePids(keys *[]uint32) {
 		}
 		if err != nil {
 			log.Warnf("failed to new interpreter for pid(%d): %v", pid, err)
-			continue
+			mi = newUnsupportedInterpreter()
 		}
 
 		(*pids)[pid] = mi
 	}
 	if len(trigger) > 0 {
-		log.Infof("apply mem profiling target pids: %v", trigger)
 		*keys = append(*keys, trigger...)
 	}
 }

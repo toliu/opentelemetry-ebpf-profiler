@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"time"
 
+	"go.opentelemetry.io/ebpf-profiler/interpreter/gpu"
 	"go.opentelemetry.io/ebpf-profiler/support"
 
 	lru "github.com/elastic/go-freelru"
@@ -134,9 +135,18 @@ func (m *traceHandler) HandleTrace(bpfTrace *host.Trace) {
 		ProcessName:    bpfTrace.ProcessName,
 		ExecutablePath: bpfTrace.ExecutablePath,
 		Origin:         bpfTrace.Origin,
-		OffTime:        bpfTrace.OffTime,
-		MemAlloc:       int64(bpfTrace.MemAlloc),
-		MemAddr:        int64(bpfTrace.MemAddr),
+	}
+	switch bpfTrace.Origin {
+	case support.TraceOriginHeap:
+		meta.Value = &samples.MetaValueHeap{
+			Addr:  int64(bpfTrace.MemAddr),
+			Bytes: int64(bpfTrace.MemAlloc),
+			Count: bpfTrace.OffTime,
+		}
+	case support.TraceOriginOffCPU:
+		meta.Value = &samples.MetaValueOffCPU{OffTime: bpfTrace.OffTime}
+	case support.TraceOriginCudaSynchronize:
+		meta.Value = &samples.MetaValueSynchronize{Duration: bpfTrace.OffTime}
 	}
 
 	if !m.reporter.SupportsReportTraceEvent() {
@@ -157,6 +167,10 @@ func (m *traceHandler) HandleTrace(bpfTrace *host.Trace) {
 	m.bpfTraceCache.Add(bpfTrace.Hash, umTrace.Hash)
 
 	meta.APMServiceName = m.traceProcessor.MaybeNotifyAPMAgent(bpfTrace, umTrace.Hash, 1)
+	if meta.Origin == support.TraceOriginCuda || meta.Origin == support.TraceOriginCudaSynchronize {
+		gpu.GPU.ReportTrace(umTrace, meta)
+		return
+	}
 	if m.reporter.SupportsReportTraceEvent() {
 		m.reporter.ReportTraceEvent(umTrace, meta)
 		return

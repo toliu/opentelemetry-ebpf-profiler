@@ -7,9 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
+	"runtime"
 	"time"
 
 	log "github.com/sirupsen/logrus"
+
+	"go.opentelemetry.io/ebpf-profiler/interpreter/gpu"
 	"go.opentelemetry.io/ebpf-profiler/libpf"
 	"go.opentelemetry.io/ebpf-profiler/tracer/types"
 
@@ -125,6 +129,14 @@ func NewExecutableInfoManager(
 	}
 	if includeTracers.Has(types.DotnetTracer) {
 		interpreterLoaders = append(interpreterLoaders, dotnet.Loader)
+	}
+	if includeTracers.Has(types.CUDATracer) {
+		// USDT support requires cookies
+		if util.HasBpfGetAttachCookie() {
+			interpreterLoaders = append(interpreterLoaders, gpu.GPU.Loader)
+		} else {
+			log.Warn("CUDA USDT tracing is not supported on this kernel (missing bpf_get_attach_cookie)")
+		}
 	}
 
 	interpreterLoaders = append(interpreterLoaders, apmint.Loader)
@@ -341,13 +353,14 @@ func (state *executableInfoManagerState) detectAndLoadInterpData(
 	for _, loader := range state.interpreterLoaders {
 		data, err := loader(state.ebpf, loaderInfo)
 		if err != nil {
+			loaderName := runtime.FuncForPC(reflect.ValueOf(loader).Pointer()).Name()
 			if errors.Is(err, os.ErrNotExist) {
 				// Very common if the process exited when we tried to analyze it.
-				log.Tracef("Failed to load %v (%#016x): file not found",
-					loaderInfo.FileName(), loaderInfo.FileID())
+				log.Tracef("Failed to load %v (%#016x) [%s] : file not found",
+					loaderInfo.FileName(), loaderInfo.FileID(), loaderName)
 			} else {
-				log.Errorf("Failed to load %v (%#016x): %v",
-					loaderInfo.FileName(), loaderInfo.FileID(), err)
+				log.Errorf("Failed to load %v (%#016x) [%s]: %v",
+					loaderInfo.FileName(), loaderInfo.FileID(), loaderName, err)
 			}
 			return nil
 		}

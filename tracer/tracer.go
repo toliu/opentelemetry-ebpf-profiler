@@ -26,6 +26,7 @@ import (
 	"github.com/zeebo/xxh3"
 
 	"go.opentelemetry.io/ebpf-profiler/host"
+	"go.opentelemetry.io/ebpf-profiler/interpreter/gpu"
 	"go.opentelemetry.io/ebpf-profiler/libpf"
 	"go.opentelemetry.io/ebpf-profiler/libpf/pfelf"
 	"go.opentelemetry.io/ebpf-profiler/libpf/xsync"
@@ -297,7 +298,13 @@ func NewTracer(ctx context.Context, cfg *Config) (*Tracer, error) {
 	if err = loader.Load(); err != nil {
 		return nil, err
 	}
+	if err = loadSystemConfig(coll, loader.Maps(), kernelSymbols, cfg.IncludeTracers, 0, cfg.FilterErrorFrames); err != nil {
+		return nil, fmt.Errorf("failed to load system config: %v", err)
+	}
 
+	if err = removeTemporaryMaps(loader.Maps()); err != nil {
+		return nil, fmt.Errorf("failed to remove temporary maps: %v", err)
+	}
 	ebpfHandler, err := pmebpf.LoadMaps(ctx, loader.Maps())
 	if err != nil {
 		return nil, fmt.Errorf("failed to load eBPF maps: %v", err)
@@ -322,8 +329,6 @@ func NewTracer(ctx context.Context, cfg *Config) (*Tracer, error) {
 		return nil, fmt.Errorf("failed to extract kernel modules metadata: %v", err)
 	}
 
-	perfEventList := []*perf.Event{}
-
 	return &Tracer{
 		processManager:         processManager,
 		kernelSymbols:          kernelSymbols,
@@ -335,7 +340,7 @@ func NewTracer(ctx context.Context, cfg *Config) (*Tracer, error) {
 		hooks:                  make(map[hookPoint]link.Link),
 		intervals:              cfg.Intervals,
 		hasBatchOperations:     hasBatchOperations,
-		perfEntrypoints:        xsync.NewRWMutex(perfEventList),
+		perfEntrypoints:        xsync.NewRWMutex(make([]*perf.Event, 0)),
 		moduleFileIDs:          moduleFileIDs,
 		reporter:               cfg.Reporter,
 		samplesPerSecond:       cfg.SamplesPerSecond,
@@ -1039,7 +1044,11 @@ func (t *Tracer) loadBpfTrace(raw []byte, cpu int) *host.Trace {
 		CPU:              cpu,
 	}
 
-	if trace.Origin != support.TraceOriginSampling && trace.Origin != support.TraceOriginOffCPU && trace.Origin != support.TraceOriginHeap {
+	if trace.Origin != support.TraceOriginSampling &&
+		trace.Origin != support.TraceOriginOffCPU &&
+		trace.Origin != support.TraceOriginHeap &&
+		trace.Origin != support.TraceOriginCuda &&
+		trace.Origin != support.TraceOriginCudaSynchronize {
 		log.Warnf("Skip handling trace from unexpected %d origin", trace.Origin)
 		return nil
 	}
@@ -1441,6 +1450,10 @@ func (t *Tracer) StartMemProfiling(block uint64) error {
 	return updateSystemConfig(t.ebpfMaps[`system_config`], nil, &block)
 }
 
+func (t *Tracer) StartGPUProfiling(ctx context.Context, rpt gpu.Reporter) error {
+	return gpu.GPU.Setup(ctx, t.ebpfProgs, t.ebpfMaps, rpt)
+}
+
 // TraceProcessor gets the trace processor.
 func (t *Tracer) TraceProcessor() tracehandler.TraceProcessor {
 	return t.processManager
@@ -1450,6 +1463,7 @@ func (t *Tracer) UpdateTargetPIDs(add, remove []uint32) error {
 	return t.processManager.UpdateTargetPid(add, remove)
 }
 
-func (t *Tracer) UpdateMemTargetPIDs(add, remove []uint32) {
+func (t *Tracer) UpdateMemTargetPIDs(disable map[libpf.InterpreterType]bool, add, remove []uint32) {
+	t.memoryTracer.DisableInterpreter(disable)
 	t.memoryTracer.UpdateTargetPID(add, remove)
 }

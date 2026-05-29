@@ -280,9 +280,12 @@ func (pm *ProcessManager) ConvertTrace(trace *host.Trace) (newTrace *libpf.Trace
 			newTrace.AppendFrameFull(frame.Type, fileID,
 				relativeRIP, mappingStart, mappingEnd, fileOffset)
 		default:
-			// jvm内存profiling已经在hotspot的内存tracer中完成，这里再处理，反而会出错
 			if frame.Type == libpf.HotSpotFrame && trace.Origin == support.TraceOriginHeap {
+				// jvm内存profiling已经在hotspot的内存tracer中完成，这里再处理，反而会出错
 				newTrace.AppendFrameID(libpf.HotSpotFrame, libpf.NewFrameID(libpf.NewFileID(uint64(frame.File), 0), frame.Lineno))
+			} else if frame.Type == libpf.CUDAKernelFrame {
+				// CUDA frame的symbolize在gpu.GPU中完成
+				newTrace.AppendFrameID(libpf.CUDAKernelFrame, libpf.NewFrameID(libpf.NewFileID(uint64(frame.File), 0), frame.Lineno))
 			} else {
 				err := pm.symbolizeFrame(i, trace, newTrace)
 				if err != nil {

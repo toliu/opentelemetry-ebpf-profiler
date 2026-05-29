@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -169,6 +170,8 @@ func (pm *ProcessManager) setProcessMemProfileMeta(lanVer string, pid libpf.PID,
 			lan = libpf.Python
 		case "Java":
 			lan = libpf.HotSpot
+		case "V8":
+			lan = libpf.V8
 		default:
 			lan = libpf.UnknownInterp
 		}
@@ -626,6 +629,9 @@ func (pm *ProcessManager) synchronizeMappings(pr process.Process,
 		_info.memProfileMeta.LibPythonPath = libPythonPath
 		if _info.memProfileMeta.Lang == libpf.UnknownInterp {
 			_info.memProfileMeta.Lang = lan
+			if strings.EqualFold(filepath.Base(_info.memProfileMeta.ExecAbsPath), `node`) {
+				_info.memProfileMeta.Lang = libpf.V8
+			}
 		}
 	}
 	pm.mu.Unlock()

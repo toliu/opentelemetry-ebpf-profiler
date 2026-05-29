@@ -5,11 +5,11 @@ package reporter // import "go.opentelemetry.io/ebpf-profiler/reporter"
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	lru "github.com/elastic/go-freelru"
 	log "github.com/sirupsen/logrus"
+
 	"go.opentelemetry.io/ebpf-profiler/libpf"
 	"go.opentelemetry.io/ebpf-profiler/libpf/xsync"
 	"go.opentelemetry.io/ebpf-profiler/reporter/internal/pdata"
@@ -30,9 +30,6 @@ type baseReporter struct {
 	// runLoop handles the run loop
 	runLoop *runLoop
 
-	// memRunLoop handles the mem run loop
-	memRunLoop *runLoop
-
 	// pdata holds the generator for the data being exported.
 	pdata *pdata.Pdata
 
@@ -42,20 +39,12 @@ type baseReporter struct {
 	// traceEvents stores reported trace events (trace metadata with frames and counts)
 	traceEvents xsync.RWMutex[map[libpf.Origin]samples.KeyToEventMapping]
 
-	memTraceEvents xsync.RWMutex[map[libpf.Origin]samples.KeyToEventMapping]
-
 	// hostmetadata stores metadata that is sent out with every request.
 	hostmetadata *lru.SyncedLRU[string, string]
-
-	// memAddr-hash
-	addrHashMap map[int64]libpf.TraceHash
-
-	targetPids sync.Map
 }
 
 func (b *baseReporter) Stop() {
 	b.runLoop.Stop()
-	b.memRunLoop.Stop()
 }
 
 func (b *baseReporter) ReportHostMetadata(metadataMap map[string]string) {
@@ -108,7 +97,7 @@ func (b *baseReporter) ExecutableMetadata(args *ExecutableMetadataArgs) {
 func (*baseReporter) SupportsReportTraceEvent() bool { return true }
 
 func (b *baseReporter) ReportTraceEvent(trace *libpf.Trace, meta *samples.TraceEventMeta) {
-	if meta.Origin != support.TraceOriginSampling && meta.Origin != support.TraceOriginOffCPU && meta.Origin != support.TraceOriginHeap {
+	if meta.Origin != support.TraceOriginSampling && meta.Origin != support.TraceOriginOffCPU {
 		// At the moment only on-CPU and off-CPU traces are reported.
 		log.Errorf("Skip reporting trace for unexpected %d origin", meta.Origin)
 		return
@@ -118,35 +107,15 @@ func (b *baseReporter) ReportTraceEvent(trace *libpf.Trace, meta *samples.TraceE
 	if b.cfg.ExtraSampleAttrProd != nil {
 		extraMeta = b.cfg.ExtraSampleAttrProd.CollectExtraSampleMeta(trace, meta)
 	}
-	keyHash := trace.Hash
-	if meta.MemAlloc > 0 {
-		if meta.MemAddr > 0 {
-			if meta.OffTime == 1 { // mem-alloc
-				b.addrHashMap[meta.MemAddr] = keyHash
-			}
-			if meta.OffTime == 0 { // mem-free需要在这里找到分配内存的调用栈后续才能关联
-				hash, ok := b.addrHashMap[meta.MemAddr]
-				if !ok {
-					return
-				}
-				delete(b.addrHashMap, meta.MemAddr)
-				keyHash = hash
-			}
-		}
-		//不同的线程ID，导致key不一样，无法将栈进行合并,内存剖析不上报线程了。
-		meta.TID = 0
-		extraMeta = uint64(meta.PID.Hash32())<<32 | uint64(meta.TID.Hash32()) // NOTE this logic is from cloudcapture
-		// FIXME when you debug locally, use this，extraMeta just set tp hash
-		//extraMeta = keyHash
-	}
 
 	containerID, err := libpf.LookupCgroupv2(b.cgroupv2ID, meta.PID)
 	if err != nil {
 		log.Tracef("Failed to get a cgroupv2 ID as container ID for PID %d: %v",
 			meta.PID, err)
 	}
+
 	key := samples.TraceAndMetaKey{
-		Hash:           keyHash,
+		Hash:           trace.Hash,
 		Comm:           meta.Comm,
 		ProcessName:    meta.ProcessName,
 		ExecutablePath: meta.ExecutablePath,
@@ -155,61 +124,13 @@ func (b *baseReporter) ReportTraceEvent(trace *libpf.Trace, meta *samples.TraceE
 		Pid:            int64(meta.PID),
 		ExtraMeta:      extraMeta,
 	}
-	if meta.Origin == support.TraceOriginHeap {
-		traceEventsMap := b.memTraceEvents.WLock()
-		defer b.memTraceEvents.WUnlock(&traceEventsMap)
-		var allocSpaces, allocs, inuseSpaces, inuseAllocs int64
-		if meta.OffTime == 0 { // free
-			inuseSpaces = -meta.MemAlloc
-			inuseAllocs = -1
-		} else { // alloc
-			allocSpaces = meta.MemAlloc
-			allocs = 1
-			if meta.MemAddr > 0 {
-				inuseSpaces = meta.MemAlloc
-				inuseAllocs = 1
-			}
-		}
-		events, exists := (*traceEventsMap)[meta.Origin][key]
-		// 只有申请内存的时候才新创建event,如果是释放内存但是没有event说明这个地址是开启profile之前申请的，忽略掉
-		if !exists {
-			if meta.OffTime != 0 {
-				events = &samples.TraceEvents{
-					Files:              trace.Files,
-					Linenos:            trace.Linenos,
-					FrameTypes:         trace.FrameTypes,
-					MappingStarts:      trace.MappingStart,
-					MappingEnds:        trace.MappingEnd,
-					MappingFileOffsets: trace.MappingFileOffsets,
-					Timestamps:         []uint64{0}, // 只记录最新的时间
-				}
-				if meta.MemAddr > 0 {
-					events.MemAlloc = []int64{0, 0, 0, 0}
-				} else {
-					events.MemAlloc = []int64{0, 0, -1, -1} // 不支持inuse
-				}
-			} else {
-				return
-			}
-		}
-		newTimestamp := uint64(meta.Timestamp)
-		if events.Timestamps[0] < newTimestamp {
-			events.Timestamps[0] = newTimestamp
-		}
-		events.MemAlloc[0] += allocSpaces
-		events.MemAlloc[1] += allocs
-		events.MemAlloc[2] += inuseSpaces
-		events.MemAlloc[3] += inuseAllocs
-		(*traceEventsMap)[meta.Origin][key] = events
-		return
-	}
 
 	traceEventsMap := b.traceEvents.WLock()
 	defer b.traceEvents.WUnlock(&traceEventsMap)
 
 	if events, exists := (*traceEventsMap)[meta.Origin][key]; exists {
 		events.Timestamps = append(events.Timestamps, uint64(meta.Timestamp))
-		events.OffTimes = append(events.OffTimes, meta.OffTime)
+		//events.OffTimes = append(events.OffTimes, meta.OffTime) // FIXME(liushi): 移除这个字段，使用更通用的Values
 		(*traceEventsMap)[meta.Origin][key] = events
 		return
 	}
@@ -222,7 +143,7 @@ func (b *baseReporter) ReportTraceEvent(trace *libpf.Trace, meta *samples.TraceE
 		MappingEnds:        trace.MappingEnd,
 		MappingFileOffsets: trace.MappingFileOffsets,
 		Timestamps:         []uint64{uint64(meta.Timestamp)},
-		OffTimes:           []int64{meta.OffTime},
+		//OffTimes:           []int64{meta.OffTime},
 	}
 }
 
@@ -266,16 +187,4 @@ func (b *baseReporter) FrameMetadata(args *FrameMetadataArgs) {
 	}
 	mu := xsync.NewRWMutex(v)
 	b.pdata.Frames.Add(fileID, &mu)
-}
-
-func (b *baseReporter) SyncTargetPids(targetPids map[libpf.PID]struct{}) {
-	b.targetPids.Range(func(k, v interface{}) bool {
-		if _, ok := targetPids[k.(libpf.PID)]; !ok {
-			b.targetPids.Delete(k)
-		}
-		return true
-	})
-	for pid, v := range targetPids {
-		b.targetPids.Store(pid, v)
-	}
 }

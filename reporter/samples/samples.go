@@ -3,7 +3,41 @@
 
 package samples // import "go.opentelemetry.io/ebpf-profiler/reporter/samples"
 
-import "go.opentelemetry.io/ebpf-profiler/libpf"
+import (
+	"go.opentelemetry.io/ebpf-profiler/libpf"
+)
+
+type (
+	metaValue     interface{ isMetaValue() }
+	MetaValueHeap struct {
+		Addr, Bytes, Count int64
+	}
+	MetaValueAI struct {
+		Stream, Device, Graph, CorrelationID uint32
+		GraphNodeID                          uint64
+		Host, Kernel                         struct {
+			End, Duration int64
+		}
+	}
+	MetaValueSynchronize struct {
+		metaValue
+		Duration int64
+	}
+	MetaValueOffCPU struct {
+		OffTime int64
+	}
+)
+
+var _ metaValue = (*MetaValueHeap)(nil)
+var _ metaValue = (*MetaValueAI)(nil)
+var _ metaValue = (*MetaValueOffCPU)(nil)
+var _ metaValue = (*MetaValueSynchronize)(nil)
+
+func (m *MetaValueHeap) isMetaValue() {}
+func (m *MetaValueHeap) IsFree() bool { return m.Count == 0 }
+
+func (m *MetaValueAI) isMetaValue()     {}
+func (m *MetaValueOffCPU) isMetaValue() {}
 
 type TraceEventMeta struct {
 	Timestamp      libpf.UnixTime64
@@ -14,9 +48,17 @@ type TraceEventMeta struct {
 	PID, TID       libpf.PID
 	CPU            int
 	Origin         libpf.Origin
-	OffTime        int64
-	MemAlloc       int64 // bytes
-	MemAddr        int64
+	Value          metaValue
+	//OffTime        int64
+}
+
+// AISeries holds one of the two independently-collected AI observation series.
+// The host-api switch produces ai-launch, the kernel switch produces
+// ai-execution; keeping them apart lets the generation layer emit one column per
+// active switch and drop the other when a switch is off.
+type AISeries struct {
+	Timestamps []uint64
+	Durations  []int64
 }
 
 // TraceEvents holds known information about a trace.
@@ -28,8 +70,15 @@ type TraceEvents struct {
 	MappingEnds        []libpf.Address
 	MappingFileOffsets []uint64
 	Timestamps         []uint64 // in nanoseconds
-	OffTimes           []int64  // in nanoseconds
-	MemAlloc           []int64
+	Values             []int64  // 不同Origin对应不同的value
+
+	// AI (TraceOriginCuda) series, stored apart from Timestamps/Values because
+	// the two GPU switches are toggled independently.
+	AIHost   AISeries // ai-launch
+	AIKernel AISeries // ai-execution
+
+	//OffTimes []int64 // in nanoseconds
+	//MemAlloc []int64
 }
 
 // TraceAndMetaKey is the deduplication key for samples. This **must always**

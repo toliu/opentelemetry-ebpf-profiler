@@ -839,7 +839,6 @@ func (impl *ebpfMapsImpl) SupportsLPMTrieBatchOperations() bool {
 func (impl *ebpfMapsImpl) UpdateTargetPIDs(add, remove []uint32) error {
 	var errs []error
 	if len(remove) > 0 {
-		log.Infof("removing target pid: %v", remove)
 		if impl.hasGenericBatchOperations {
 			if _, err := impl.targetPids.BatchDelete(ptrCastMarshaler[uint32](remove), nil); err != nil {
 				errs = append(errs, fmt.Errorf("failed to batch delete pids: %v", err))
@@ -853,7 +852,6 @@ func (impl *ebpfMapsImpl) UpdateTargetPIDs(add, remove []uint32) error {
 		}
 	}
 	if len(add) > 0 {
-		log.Infof("adding target pid: %v", add)
 		if impl.hasGenericBatchOperations {
 			addValue := make([]uint8, len(add))
 			for idx := range addValue {

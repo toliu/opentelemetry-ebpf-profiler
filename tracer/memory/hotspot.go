@@ -117,6 +117,8 @@ func (h *hotspotInterpreter) Close() error {
 	return nil
 }
 
+func (h *hotspotInterpreter) Type() libpf.InterpreterType { return libpf.HotSpot }
+
 func (h *hotspotInterpreter) start(ctx context.Context) {
 	var interval = time.Second
 	for {

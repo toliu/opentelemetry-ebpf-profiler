@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"go.opentelemetry.io/ebpf-profiler/libpf"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/tklauser/numcpus"
 
@@ -86,10 +84,9 @@ func (c *Controller) Start(ctx context.Context) error {
 		BPFVerifierLogLevel:    uint32(c.config.BpfVerifierLogLevel),
 		ProbabilisticInterval:  c.config.ProbabilisticInterval,
 		ProbabilisticThreshold: c.config.ProbabilisticThreshold,
-		TargetPIDs:             c.config.TargetPIDs,
+		//OffCPUThreshold:        uint32(c.config.OffCPUThreshold),
 	})
 	if err != nil {
-		c.reporter.Stop()
 		return fmt.Errorf("failed to load eBPF tracer: %w", err)
 	}
 	c.tracer = trc
@@ -102,38 +99,29 @@ func (c *Controller) Start(ctx context.Context) error {
 	metrics.Add(metrics.IDProcPIDStartupMs, metrics.MetricValue(time.Since(now).Milliseconds()))
 	log.Trace("Completed initial PID listing")
 
-	if c.config.SamplesPerSecond > 0 {
-		// Attach our tracer to the perf event
-		if err := trc.AttachTracer(); err != nil {
-			return fmt.Errorf("failed to attach to perf event: %w", err)
-		}
-		log.Trace("Attached tracer program")
-		if c.config.OffCPUThreshold > 0 {
-			if err := trc.StartOffCPUProfiling(); err != nil {
-				c.reporter.Stop()
-				return fmt.Errorf("failed to start off-cpu profiling: %v", err)
-			}
-			log.Printf("Enabled off-cpu profiling")
-		}
+	// Attach our tracer to the perf event
+	if err := trc.AttachTracer(); err != nil {
+		return fmt.Errorf("failed to attach to perf event: %w", err)
 	}
+	log.Info("Attached tracer program")
 
-	if c.config.MemProfileBlock > 0 {
-		trc.SyncMemProfileTargetPids(c.config.MemTargetPIDs)
-		_ = trc.SyncMemProfileBlock(c.config.MemProfileBlock)
-	}
+	//if c.config.OffCPUThreshold > 0 {
+	//	if err := trc.StartOffCPUProfiling(); err != nil {
+	//		return fmt.Errorf("failed to start off-cpu profiling: %v", err)
+	//	}
+	//	log.Printf("Enabled off-cpu profiling")
+	//}
 
 	if c.config.ProbabilisticThreshold < tracer.ProbabilisticThresholdMax {
 		trc.StartProbabilisticProfiling(ctx)
 		log.Printf("Enabled probabilistic profiling")
 	} else {
 		if err := trc.EnableProfiling(); err != nil {
-			c.reporter.Stop()
 			return fmt.Errorf("failed to enable perf events: %w", err)
 		}
 	}
 
 	if err := trc.AttachSchedMonitor(); err != nil {
-		c.reporter.Stop()
 		return fmt.Errorf("failed to attach scheduler monitor: %w", err)
 	}
 
@@ -141,8 +129,8 @@ func (c *Controller) Start(ctx context.Context) error {
 	// change this log line update also the system test.
 	log.Printf("Attached sched monitor")
 
-	if err := startTraceHandling(ctx, c.reporter, intervals, trc, traceHandlerCacheSize); err != nil {
-		c.reporter.Stop()
+	if err := startTraceHandling(ctx, c.reporter, intervals, trc,
+		traceHandlerCacheSize); err != nil {
 		return fmt.Errorf("failed to start trace handling: %w", err)
 	}
 
@@ -159,18 +147,6 @@ func (c *Controller) Shutdown() {
 	if c.tracer != nil {
 		c.tracer.Close()
 	}
-}
-
-func (c *Controller) SyncTargetPIDs(targetPids map[libpf.PID]bool) error {
-	return nil
-}
-
-func (c *Controller) SyncMemTargetPIDs(targetPids map[libpf.PID]bool) {
-	c.tracer.SyncMemProfileTargetPids(targetPids)
-}
-
-func (c *Controller) SyncMemProfileBlock(memProfileBlock uint64) error {
-	return c.tracer.SyncMemProfileBlock(memProfileBlock)
 }
 
 func startTraceHandling(ctx context.Context, rep reporter.TraceReporter,

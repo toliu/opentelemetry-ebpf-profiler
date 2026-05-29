@@ -3,15 +3,20 @@ package colasoft
 import (
 	"context"
 	"fmt"
+	"maps"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/exp/constraints"
 
 	"go.opentelemetry.io/ebpf-profiler/host"
+	"go.opentelemetry.io/ebpf-profiler/interpreter/gpu"
 	"go.opentelemetry.io/ebpf-profiler/times"
 	"go.opentelemetry.io/ebpf-profiler/tracehandler"
 	"go.opentelemetry.io/ebpf-profiler/tracer"
 	tracertypes "go.opentelemetry.io/ebpf-profiler/tracer/types"
+	"go.opentelemetry.io/ebpf-profiler/util"
 )
 
 type profiling struct {
@@ -42,9 +47,11 @@ func (p *profiling) Start(ctx context.Context) {
 }
 
 func (p *profiling) start(parent context.Context) error {
-	if !p.ctrl.State().Enable() {
+	if !p.ctrl.GetProfilingStat(nil).Enable() {
 		return nil
 	}
+	defer p.ctrl.GetProfilingStat(nil)
+
 	if err := tracer.ProbeBPFSyscall(); err != nil {
 		return fmt.Errorf("failed to probe eBPF syscall: %w", err)
 	}
@@ -54,10 +61,14 @@ func (p *profiling) start(parent context.Context) error {
 	defer p.reporter.Stop()
 	defer p.reporter.SetOnCPUFreq(0)
 	intervals := times.New(p.reporter.Interval(), time.Second*5, 0)
+	tracers := tracertypes.AllTracers()
+	if !util.HasBpfGetAttachCookie() {
+		tracers.Disable(tracertypes.CUDATracer) // USDT support requires cookies
+	}
 	trc, err := tracer.NewTracer(ctx, &tracer.Config{
 		Reporter:          p.reporter,
 		Intervals:         intervals,
-		IncludeTracers:    tracertypes.AllTracers(),
+		IncludeTracers:    tracers,
 		FilterErrorFrames: true,
 		DebugTracer:       false,
 	})
@@ -79,23 +90,38 @@ func (p *profiling) start(parent context.Context) error {
 	if _, err = tracehandler.Start(ctx, p.reporter, trc.TraceProcessor(), traceCh, intervals, 65536); err != nil {
 		return err
 	}
-	var state = State{} // start with empty
+	if tracers.Has(tracertypes.CUDATracer) {
+		if err = trc.StartGPUProfiling(ctx, p.reporter); err != nil {
+			return fmt.Errorf("faield start Accelerator profiling: %v", err)
+		}
+	}
+	var state = new(State) // start with empty
+	enter := time.Now()
 	for {
 		select {
 		case <-time.After(time.Second):
 		case <-ctx.Done():
 			return nil
 		}
-		cur := p.ctrl.State()
+		cur := p.ctrl.GetProfilingStat(state)
 		if !cur.Enable() {
+			log.Infof("profiling stopped,duration of this run: %s", time.Since(enter))
 			return nil
 		}
-		p.reporter.SetInterval(state.Interval)
+		p.reporter.SetInterval(cur.interval)
+		var logMessages []string
+		if cur.interval != state.interval {
+			logMessages = append(logMessages, fmt.Sprintf("report-interval(%s->%s)", state.interval, cur.interval))
+		}
 		if cur.CPU.OffThreshold != state.CPU.OffThreshold {
 			if err = trc.StartOffCPUProfiling(uint32(cur.CPU.OffThreshold)); err != nil {
 				return fmt.Errorf("failed to start off-cpu profiling: %v", err)
 			}
-			log.Infof("switch off-cpu profiling threshold %d to %d", state.CPU.OffThreshold, cur.CPU.OffThreshold)
+			msg := fmt.Sprintf("off-cpu(%.2f%%->%.2f%%)%s",
+				float32(state.CPU.OffThreshold)/10, float32(cur.CPU.OffThreshold)/10,
+				actionSymbol(state.CPU.OffThreshold, cur.CPU.OffThreshold),
+			)
+			logMessages = append(logMessages, msg)
 		}
 
 		if cur.CPU.OnFrequency != state.CPU.OnFrequency {
@@ -103,21 +129,67 @@ func (p *profiling) start(parent context.Context) error {
 			if err = trc.StartOnCpuProfiling(cur.CPU.OnFrequency); err != nil {
 				return fmt.Errorf("failed to start on-cpu profiling: %v", err)
 			}
-			log.Infof("switch on-cpu profiling frequency %d to %d", state.CPU.OnFrequency, cur.CPU.OnFrequency)
+			msg := fmt.Sprintf("on-cpu(%dHz->%dHz)%s",
+				state.CPU.OnFrequency, cur.CPU.OnFrequency, actionSymbol(state.CPU.OnFrequency, cur.CPU.OnFrequency))
+			logMessages = append(logMessages, msg)
 		}
 		if cur.Memory.Block != state.Memory.Block {
 			if err = trc.StartMemProfiling(cur.Memory.Block); err != nil {
 				return err
 			}
-			log.Infof("switch mem profiling block %d to %d", state.Memory.Block, cur.Memory.Block)
+			msg := fmt.Sprintf("heap-block(%dB->%dB)%s",
+				state.Memory.Block, cur.Memory.Block, actionSymbol(state.Memory.Block, cur.Memory.Block))
+			logMessages = append(logMessages, msg)
 		}
-
-		add, remove := state.CPU.PIDs.Compare(cur.CPU.PIDs)
+		if gpu.GPU.Switch(cur.Accelerator.HostAPI, cur.Accelerator.Kernel, cur.Accelerator.Threshold, cur.Accelerator.PIDs) {
+			msg := fmt.Sprintf("accelerator(host=%t->%t, kernel=%t->%t, threshold=%.1f%%->%.1f%%)",
+				state.Accelerator.HostAPI,
+				cur.Accelerator.HostAPI,
+				state.Accelerator.Kernel,
+				cur.Accelerator.Kernel,
+				float32(state.Accelerator.Threshold)/10,
+				float32(cur.Accelerator.Threshold)/10,
+			)
+			logMessages = append(logMessages, msg)
+		}
+		add, remove := state.Accelerator.PIDs.Compare(cur.Accelerator.PIDs)
+		if len(add) > 0 || len(remove) > 0 {
+			logMessages = append(logMessages, fmt.Sprintf("Accelerator-PID(%s)", state.Accelerator.PIDs.diff(cur.Accelerator.PIDs)))
+		}
+		add, remove = state.CPU.PIDs.Compare(cur.CPU.PIDs)
 		if err = trc.UpdateTargetPIDs(add, remove); err != nil {
+			cur.CPU.PIDs = state.CPU.PIDs // reset to prev
 			log.Warnf("failed to update target pids: %v", err)
+		} else if len(add) > 0 || len(remove) > 0 {
+			logMessages = append(logMessages, fmt.Sprintf("cpu-PID(%s)", state.CPU.PIDs.diff(cur.CPU.PIDs)))
 		}
 		add, remove = state.Memory.PIDs.Compare(cur.Memory.PIDs)
-		trc.UpdateMemTargetPIDs(add, remove)
+		trc.UpdateMemTargetPIDs(cur.Memory.Disable, add, remove)
+		if len(add) > 0 || len(remove) > 0 {
+			logMessages = append(logMessages, fmt.Sprintf("memory-PID(%s)", state.Memory.PIDs.diff(cur.Memory.PIDs)))
+		}
+		if !maps.Equal(state.Memory.Disable, cur.Memory.Disable) {
+			logMessages = append(logMessages, fmt.Sprintf("disable-memory-interpreter(%v)", cur.Memory.Disable))
+		}
+
+		if len(logMessages) > 0 {
+			log.Infof("switch profiling state: %s", strings.Join(logMessages, ", "))
+		}
 		state = cur
+	}
+}
+
+func actionSymbol[T constraints.Integer](from, to T) string {
+	switch {
+	case from == 0 && to > 0:
+		return "+"
+	case from > 0 && to == 0:
+		return "-"
+	case from < to:
+		return "↑"
+	case from > to:
+		return "↓"
+	default:
+		return ""
 	}
 }

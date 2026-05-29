@@ -49,6 +49,10 @@ const (
 	V8Frame FrameType = support.FrameMarkerV8
 	// DotnetFrame identifies the Dotnet interpreter frames.
 	DotnetFrame FrameType = support.FrameMarkerDotnet
+	// GolangFrame identifies golang frames.
+	GolangFrame FrameType = support.FrameMarkerGolang
+	// CUDAKernelFrame identifies CUDA kernel frames.
+	CUDAKernelFrame FrameType = support.FrameMarkerCUDAKernel
 	// AbortFrame identifies frames that report that further unwinding was aborted due to an error.
 	AbortFrame FrameType = support.FrameMarkerAbort
 )

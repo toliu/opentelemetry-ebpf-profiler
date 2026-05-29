@@ -8,6 +8,8 @@ import (
 
 	cebpf "github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
+
+	"go.opentelemetry.io/ebpf-profiler/libpf"
 )
 
 type golangInterpreter struct {
@@ -57,4 +59,5 @@ func newGolangInterpreter(filename string, pid uint32, progs map[string]*cebpf.P
 	return &golangInterpreter{link: lnk}, nil
 }
 
-func (g *golangInterpreter) Close() error { return g.link.Close() }
+func (g *golangInterpreter) Close() error                { return g.link.Close() }
+func (g *golangInterpreter) Type() libpf.InterpreterType { return libpf.Golang }

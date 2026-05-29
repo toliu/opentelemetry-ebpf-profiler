@@ -5,6 +5,32 @@
 #include "tsd.h"
 #include "types.h"
 
+// Per-CPU record of the stack being built and meta-data on the building process
+bpf_map_def SEC("maps") uprobe_per_cpu_records = {
+  .type        = BPF_MAP_TYPE_PERCPU_ARRAY,
+  .key_size    = sizeof(int),
+  .value_size  = sizeof(PerCPURecord),
+  .max_entries = 1,
+};
+
+// uprobe_progs maps from a program ID to a uprobe eBPF program
+bpf_map_def SEC("maps") uprobe_progs = {
+  .type        = BPF_MAP_TYPE_PROG_ARRAY,
+  .key_size    = sizeof(u32),
+  .value_size  = sizeof(u32),
+  .max_entries = NUM_TRACER_PROGS,
+};
+
+SEC("uprobe/uprobe_dummy_probe")
+int uprobe_dummy_probe(struct pt_regs *ctx)
+{
+  int key0 = 0;
+  bpf_tail_call(ctx, &uprobe_progs, key0);
+  PerCPURecord *record = bpf_map_lookup_elem(&uprobe_per_cpu_records, &key0);
+  (void)record;
+  return 0;
+}
+
 // todo belows are able to remove
 #define KERNEL         0
 #define MALLOC         1
@@ -162,7 +188,7 @@ alloc_exit2(struct pt_regs *ctx, u64 address, u32 type_index)
   u32 pid = id >> 32;
   u64 ts  = bpf_ktime_get_ns();
   bpf_map_update_elem(&alloc_infos, &address, size64, BPF_ANY);
-  return collect_trace(ctx, TRACE_HEAP_ALLOC, pid, tid, ts, 1, *size64, address);
+  return collect_trace(ctx, TRACE_HEAP_ALLOC, pid, tid, ts, 1, *size64, address, 0);
 }
 
 static inline __attribute__((__always_inline__)) int alloc_exit(struct pt_regs *ctx, u32 type_index)
@@ -181,7 +207,7 @@ static inline __attribute__((__always_inline__)) u64 free_entry(struct pt_regs *
   u32 tid = id & 0xFFFFFFFF;
   bpf_map_delete_elem(&alloc_infos, &addr);
   u64 ts = bpf_ktime_get_ns();
-  return collect_trace(ctx, TRACE_HEAP_ALLOC, pid, tid, ts, 0, *s, addr);
+  return collect_trace(ctx, TRACE_HEAP_ALLOC, pid, tid, ts, 0, *s, addr, 0);
 }
 
 SEC("uprobe/malloc")
@@ -354,7 +380,7 @@ int mallocgc_register_enter(struct pt_regs *ctx)
   }
   s = 0;
   bpf_map_update_elem(&thread_alloc_size, &tid, &s, BPF_ANY);
-  return collect_trace(ctx, TRACE_HEAP_ALLOC, pid, tid, ts, 1, size, 0);
+  return collect_trace(ctx, TRACE_HEAP_ALLOC, pid, tid, ts, 1, size, 0, 0);
 }
 
 SEC("uprobe/mallocgc_stack")
@@ -384,7 +410,7 @@ int mallocgc_stack_enter(struct pt_regs *ctx)
   }
   s = 0;
   bpf_map_update_elem(&thread_alloc_size, &tid, &s, BPF_ANY);
-  return collect_trace(ctx, TRACE_HEAP_ALLOC, pid, tid, ts, 1, size, 0);
+  return collect_trace(ctx, TRACE_HEAP_ALLOC, pid, tid, ts, 1, size, 0, 0);
 }
 
 /*Python*/

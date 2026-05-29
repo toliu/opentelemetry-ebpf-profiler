@@ -14,6 +14,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/pprofile"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 
+	"go.opentelemetry.io/ebpf-profiler/interpreter/gpu"
 	"go.opentelemetry.io/ebpf-profiler/libpf"
 	"go.opentelemetry.io/ebpf-profiler/libpf/xsync"
 	"go.opentelemetry.io/ebpf-profiler/reporter"
@@ -43,6 +44,7 @@ type (
 )
 
 var _ reporter.Reporter = (*colaSoftReporter)(nil)
+var _ gpu.Reporter = (*colaSoftReporter)(nil)
 
 func newColaSoftReporter(ctx context.Context, ctrl Controller) *colaSoftReporter {
 	csr := &colaSoftReporter{ctrl: ctrl}
@@ -60,12 +62,10 @@ func newColaSoftReporter(ctx context.Context, ctrl Controller) *colaSoftReporter
 	return csr
 }
 
+func (c *colaSoftReporter) Demangle(n string) string { return c.ctrl.Demangle(n) }
+
 func (c *colaSoftReporter) SetInterval(interval time.Duration) {
-	interval = max(cmp.Or(interval, time.Minute), time.Second)
-	value := interval.Nanoseconds()
-	if prev := c.interval.Swap(value); prev != value {
-		log.Infof("switch reporter interval %s to %s", time.Duration(prev), interval)
-	}
+	c.interval.Swap(interval.Nanoseconds())
 }
 func (c *colaSoftReporter) Interval() time.Duration { return time.Duration(c.interval.Load()) }
 func (c *colaSoftReporter) SetOnCPUFreq(freq int64) { c.onCpuFreq.Store(freq) }
@@ -74,40 +74,42 @@ func (c *colaSoftReporter) ReportFramesForTrace(*libpf.Trace)                   
 func (c *colaSoftReporter) ReportCountForTrace(libpf.TraceHash, uint16, *samples.TraceEventMeta) {}
 
 func (c *colaSoftReporter) ReportTraceEvent(trace *libpf.Trace, meta *samples.TraceEventMeta) {
-	supported := []libpf.Origin{support.TraceOriginSampling, support.TraceOriginOffCPU, support.TraceOriginHeap}
+	supported := []libpf.Origin{
+		support.TraceOriginSampling,
+		support.TraceOriginOffCPU,
+		support.TraceOriginHeap,
+		support.TraceOriginCuda,
+		support.TraceOriginCudaSynchronize,
+	}
 	if !slices.Contains(supported, meta.Origin) {
 		log.Errorf("Skip reporting trace for unexpected %d origin", meta.Origin)
 		return
 	}
-	extraMeta := c.ctrl.CollectExtraSampleMeta(trace, meta)
-	keyHash := trace.Hash
-	isHeap := meta.Origin == support.TraceOriginHeap
-	isHeapFree := isHeap && meta.OffTime == 0
 
-	if meta.MemAlloc > 0 && meta.MemAddr > 0 {
-		// 记录heap的hash，用于关联同一个addr在不同的trace中被申请/释放
-		if isHeapFree {
-			hash, ok := c.cache.heapHash[meta.MemAddr]
-			if !ok {
+	if heap, ok := meta.Value.(*samples.MetaValueHeap); ok && heap.Bytes > 0 && heap.Addr > 0 {
+		if heap.IsFree() {
+			// 只有申请内存的时候才新创建event,如果是释放内存但是没有event说明这个地址是开启profile之前申请的，忽略掉
+			hash, _ok := c.cache.heapHash[heap.Addr]
+			if !_ok {
 				return
 			}
-			delete(c.cache.heapHash, meta.MemAddr)
-			keyHash = hash
+			delete(c.cache.heapHash, heap.Addr)
+			trace.Hash = hash
 		} else {
-			c.cache.heapHash[meta.MemAddr] = keyHash
+			c.cache.heapHash[heap.Addr] = trace.Hash
 		}
 		//不同的线程ID，导致key不一样，无法将栈进行合并,内存剖析不上报线程了。
 		meta.TID = 0
-		extraMeta = uint64(meta.PID.Hash32())<<32 | uint64(meta.TID.Hash32()) // NOTE this logic is from cloudcapture
 	}
+
 	key := samples.TraceAndMetaKey{
-		Hash:           keyHash,
+		Hash:           trace.Hash,
 		Comm:           meta.Comm,
 		ProcessName:    meta.ProcessName,
 		ExecutablePath: meta.ExecutablePath,
 		ApmServiceName: meta.APMServiceName,
 		Pid:            int64(meta.PID),
-		ExtraMeta:      extraMeta,
+		ExtraMeta:      c.ctrl.CollectExtraSampleMeta(trace, meta),
 	}
 
 	traceEventsMap := c.cache.events.WLock()
@@ -120,10 +122,6 @@ func (c *colaSoftReporter) ReportTraceEvent(trace *libpf.Trace, meta *samples.Tr
 	}
 	events, exists := (*traceEventsMap)[meta.PID][meta.Origin][key]
 	if !exists {
-		// 只有申请内存的时候才新创建event,如果是释放内存但是没有event说明这个地址是开启profile之前申请的，忽略掉
-		if isHeapFree {
-			return
-		}
 		events = &samples.TraceEvents{
 			Files:              trace.Files,
 			Linenos:            trace.Linenos,
@@ -132,37 +130,55 @@ func (c *colaSoftReporter) ReportTraceEvent(trace *libpf.Trace, meta *samples.Tr
 			MappingEnds:        trace.MappingEnd,
 			MappingFileOffsets: trace.MappingFileOffsets,
 		}
-		if isHeap {
-			if meta.MemAddr > 0 {
-				events.MemAlloc = []int64{0, 0, 0, 0}
-			} else {
-				events.MemAlloc = []int64{0, 0, -1, -1} // 不支持inuse
-			}
-		}
 		c.count.Add(1)
 		(*traceEventsMap)[meta.PID][meta.Origin][key] = events
 	}
 	events.Timestamps = append(events.Timestamps, uint64(meta.Timestamp))
-	events.OffTimes = append(events.OffTimes, meta.OffTime)
-
-	if meta.Origin == support.TraceOriginHeap {
+	switch v := meta.Value.(type) {
+	case *samples.MetaValueOffCPU:
+		events.Values = append(events.Values, v.OffTime)
+	case *samples.MetaValueAI:
+		events.Timestamps = events.Timestamps[:len(events.Timestamps)-1] // AI类型时，meta.Timestamp的值是0
+		// 采集层不做开关判断，全部落库：哪一侧有数据就记录哪一侧。
+		// 上游 traceFixer 只在 host/kernel 侧存在有效 timing 时才填充对应字段，
+		// 因此用 End != 0 判断该侧是否有数据；是否上报由生成层统一按开关决定。
+		if v.Host.End != 0 {
+			events.AIHost.Timestamps = append(events.AIHost.Timestamps, uint64(v.Host.End))
+			events.AIHost.Durations = append(events.AIHost.Durations, v.Host.Duration)
+		}
+		if v.Kernel.End != 0 {
+			events.AIKernel.Timestamps = append(events.AIKernel.Timestamps, uint64(v.Kernel.End))
+			events.AIKernel.Durations = append(events.AIKernel.Durations, v.Kernel.Duration)
+		}
+	case *samples.MetaValueSynchronize:
+		events.Values = append(events.Values, v.Duration)
+	case *samples.MetaValueHeap:
 		events.Timestamps[0] = slices.Max(events.Timestamps)
 		events.Timestamps = events.Timestamps[:1] // 只记录最新的时间
-		allocSpace := &events.MemAlloc[0]
-		allocCount := &events.MemAlloc[1]
-		inuseSpace := &events.MemAlloc[2]
-		inuseAllocCount := &events.MemAlloc[3]
-		if isHeapFree {
-			*inuseSpace -= meta.MemAlloc
-			*inuseAllocCount--
-		} else {
-			*allocSpace += meta.MemAlloc
-			*allocCount += meta.OffTime
-			if meta.MemAddr > 0 {
-				*inuseSpace += meta.MemAlloc
-				*inuseAllocCount += meta.OffTime
+		if events.Values == nil {
+			if v.Addr > 0 {
+				events.Values = []int64{0, 0, 0, 0}
+			} else {
+				events.Values = []int64{0, 0, -1, -1} // 不支持inuse
 			}
 		}
+		allocSpace := &events.Values[0]
+		allocCount := &events.Values[1]
+		inuseSpace := &events.Values[2]
+		inuseAllocCount := &events.Values[3]
+		if v.IsFree() {
+			*inuseSpace -= v.Bytes
+			*inuseAllocCount--
+		} else {
+			*allocSpace += v.Bytes
+			*allocCount += v.Count
+			if v.Addr > 0 {
+				*inuseSpace += v.Bytes
+				*inuseAllocCount += v.Count
+			}
+		}
+	default:
+		events.Values = []int64{1} // ON-CPU
 	}
 	symbolization := c.cache.symbolization.WLock()
 	defer c.cache.symbolization.WUnlock(&symbolization)
@@ -227,6 +243,17 @@ func (c *colaSoftReporter) ReportHostMetadata(map[string]string) {}
 func (c *colaSoftReporter) ReportHostMetadataBlocking(context.Context, map[string]string, int, time.Duration) error {
 	return nil
 }
+func (c *colaSoftReporter) ConsumeTimeEvent(timeline *support.Timeline) {
+	offset := c.ctrl.TimeOffset().Nanoseconds()
+	start, end := int64(timeline.Start), int64(timeline.End)
+	timeline.Start, timeline.End = uint64(start+offset), uint64(end+offset)
+	c.ctrl.ConsumeTimeEvent(timeline)
+	timeline.Start, timeline.End = uint64(start), uint64(end)
+}
+
+func (c *colaSoftReporter) ConsumeErrorEvent(evt *support.ErrorEvent) {
+	c.ctrl.ConsumeErrorEvent(evt)
+}
 
 func (c *colaSoftReporter) Start(context.Context) error {
 	c.running.Store(true)
@@ -258,33 +285,58 @@ func (c *colaSoftReporter) generate(events map[libpf.Origin]samples.KeyToEventMa
 func (c *colaSoftReporter) setProfile(origin libpf.Origin, events map[samples.TraceAndMetaKey]*samples.TraceEvents, profile pprofile.Profile, symbolization map[libpf.FrameID]*samples.SourceInfo) {
 	stringTab := newIndexTable[string]()
 	funcTab := newIndexTable[samples.FuncInfo]()
-	st := profile.SampleType().AppendEmpty()
+	var sampleType [][2]string // [ [Type, Unit] ]
+	var hostOn, kernelOn = gpu.GPU.EnableHostAPI(), gpu.GPU.EnableKernel()
+	periodType := profile.PeriodType()
 	switch origin {
 	case support.TraceOriginSampling:
 		freq := c.onCpuFreq.Load()
 		if freq == 0 {
 			return
 		}
-		st.SetTypeStrindex(stringTab.Get("samples"))
-		st.SetUnitStrindex(stringTab.Get("count"))
-
-		pt := profile.PeriodType()
-		pt.SetTypeStrindex(stringTab.Get("cpu"))
-		pt.SetUnitStrindex(stringTab.Get("nanoseconds"))
+		sampleType = [][2]string{{"samples", "count"}}
+		periodType.SetTypeStrindex(stringTab.Get("cpu"))
+		periodType.SetUnitStrindex(stringTab.Get("nanoseconds"))
 		profile.SetPeriod(1e9 / freq)
 	case support.TraceOriginOffCPU:
-		st.SetTypeStrindex(stringTab.Get("events"))
-		st.SetUnitStrindex(stringTab.Get("nanoseconds"))
+		sampleType = [][2]string{{"events", "nanoseconds"}}
 	case support.TraceOriginHeap:
-		pt := profile.PeriodType()
-		pt.SetTypeStrindex(stringTab.Get("heap"))
-		pt.SetUnitStrindex(stringTab.Get("bytes"))
-		//alloc_space
-		st.SetTypeStrindex(stringTab.Get("heap"))
-		st.SetUnitStrindex(stringTab.Get("bytes"))
+		sampleType = [][2]string{
+			{"heap", "bytes"},
+			{"heap", "count"},
+			{"heap", "using-byte"},
+			{"heap", "using-count"},
+		}
+		periodType.SetTypeStrindex(stringTab.Get("heap"))
+		periodType.SetUnitStrindex(stringTab.Get("bytes"))
+	case support.TraceOriginCuda:
+		if hostOn {
+			sampleType = append(sampleType, [2]string{"ai-launch", "nanoseconds"})
+		}
+		if kernelOn {
+			sampleType = append(sampleType, [2]string{"ai-execution", "nanoseconds"})
+		}
+		if len(sampleType) == 0 {
+			return
+		}
+		periodType.SetTypeStrindex(stringTab.Get("ai"))
+		periodType.SetUnitStrindex(stringTab.Get("nanoseconds"))
+	case support.TraceOriginCudaSynchronize:
+		// ai-sync-wait 属于 host-api 观测侧：开关关闭时在生成层丢弃。
+		if !hostOn {
+			return
+		}
+		sampleType = [][2]string{{"ai-synchronous-wait", "nanoseconds"}}
+		periodType.SetTypeStrindex(stringTab.Get("ai"))
+		periodType.SetUnitStrindex(stringTab.Get("nanoseconds"))
 	default:
 		log.Errorf("Generating profile for unsupported origin %d", origin)
 		return
+	}
+	for _, stype := range sampleType {
+		st := profile.SampleType().AppendEmpty()
+		st.SetTypeStrindex(stringTab.Get(stype[0]))
+		st.SetUnitStrindex(stringTab.Get(stype[1]))
 	}
 
 	// Temporary lookup to reference existing Mappings.
@@ -296,34 +348,55 @@ func (c *colaSoftReporter) setProfile(origin libpf.Origin, events map[samples.Tr
 	now := time.Now()
 	offset := c.ctrl.TimeOffset().Nanoseconds()
 	for traceKey, traceInfo := range events {
+		values := traceInfo.Values
+		timestamps := traceInfo.Timestamps
+		if origin == support.TraceOriginCuda {
+			values = make([]int64, 0, 2)
+			timestamps = make([]uint64, 0, len(traceInfo.AIHost.Timestamps)+len(traceInfo.AIKernel.Timestamps))
+			if hostOn {
+				var sum int64
+				for _, d := range traceInfo.AIHost.Durations {
+					sum += d
+				}
+				values = append(values, sum)
+				timestamps = append(timestamps, traceInfo.AIHost.Timestamps...)
+			}
+			if kernelOn {
+				var sum int64
+				for _, d := range traceInfo.AIKernel.Durations {
+					sum += d
+				}
+				values = append(values, sum)
+				timestamps = append(timestamps, traceInfo.AIKernel.Timestamps...)
+			}
+			// 开关已开启，但该 trace 在 host/kernel 两侧都没有采集到有效 timing
+			// （典型：开关中途切换后残留了另一侧的数据）。此时 timestamps 为空，
+			// 之后 timestamps[0] 会越界崩溃，直接跳过该样本。
+			if len(timestamps) == 0 {
+				continue
+			}
+		} else if origin == support.TraceOriginHeap {
+			// 内存profile生成时，所有调用用链的时间戳统一使用当前时间
+			timestamps = []uint64{uint64(now.UnixNano())}
+		}
+
 		sample := profile.Sample().AppendEmpty()
 		sample.SetLocationsStartIndex(locationIndex)
-		switch origin {
-		case support.TraceOriginSampling:
-			sample.Value().Append(1)
-		case support.TraceOriginOffCPU:
-			sample.Value().Append(traceInfo.OffTimes...)
-		case support.TraceOriginHeap:
-			sample.Value().Append(traceInfo.MemAlloc...)
-			// 内存profile生成时，所有调用用链的时间戳统一使用当前时间
-			traceInfo.Timestamps = []uint64{uint64(now.UnixNano())}
-		}
+		sample.Value().Append(values...)
 
-		slices.Sort(traceInfo.Timestamps)
-		for idx, ts := range traceInfo.Timestamps {
-			traceInfo.Timestamps[idx] = uint64(int64(ts) + offset)
+		slices.Sort(timestamps)
+		for idx, ts := range timestamps {
+			timestamps[idx] = uint64(int64(ts) + offset)
 		}
-		startTS = pcommon.Timestamp(traceInfo.Timestamps[0])
-		endTS = pcommon.Timestamp(traceInfo.Timestamps[len(traceInfo.Timestamps)-1])
+		startTS = pcommon.Timestamp(timestamps[0])
+		endTS = pcommon.Timestamp(timestamps[len(timestamps)-1])
 
-		sample.TimestampsUnixNano().FromRaw(traceInfo.Timestamps)
+		sample.TimestampsUnixNano().FromRaw(timestamps)
 
 		// Walk every frame of the trace.
 		for i := range traceInfo.FrameTypes {
 			loc := profile.LocationTable().AppendEmpty()
 			loc.SetAddress(uint64(traceInfo.Linenos[i]))
-			attrMgr.AppendOptionalString(loc.AttributeIndices(), `profile.location.fileID`, traceInfo.Files[i].Base64())
-			attrMgr.AppendOptionalString(loc.AttributeIndices(), "profile.frame.type", traceInfo.FrameTypes[i].String())
 
 			switch frameKind := traceInfo.FrameTypes[i]; frameKind {
 			case libpf.NativeFrame:
@@ -473,7 +546,9 @@ func (c *colaSoftReporter) loop(ctx context.Context) {
 		if len(pdata) == 0 {
 			continue
 		}
-		c.ctrl.ConsumeProfiles(pdata)
+		if c.running.Load() {
+			c.ctrl.ConsumeProfiles(pdata)
+		}
 	}
 }
 

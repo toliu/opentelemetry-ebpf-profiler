@@ -5,6 +5,8 @@ import (
 
 	cebpf "github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
+
+	"go.opentelemetry.io/ebpf-profiler/libpf"
 )
 
 type cLikeInterpreter struct {
@@ -78,3 +80,5 @@ func (c *cLikeInterpreter) Close() error {
 	}
 	return errors.Join(errs...)
 }
+
+func (c *cLikeInterpreter) Type() libpf.InterpreterType { return libpf.Native }

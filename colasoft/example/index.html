@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>eBPF Profiler</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: #1a1a2e;
+            color: #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont,
+            "Segoe UI", Roboto, sans-serif;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .header {
+            margin-bottom: 16px;
+        }
+
+        .header h1 {
+            font-size: 22px;
+            font-weight: 600;
+            color: #e94560;
+        }
+
+        .header p {
+            font-size: 13px;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        /* ── Tab Bar ── */
+        .tab-bar {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid #333;
+        }
+
+        .tab-btn {
+            padding: 8px 20px;
+            border: 1px solid transparent;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            background: transparent;
+            color: #888;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .tab-btn:hover {
+            color: #e0e0e0;
+            background: #16213e;
+        }
+
+        .tab-btn.active {
+            color: #e94560;
+            background: #16213e;
+            border-color: #333;
+        }
+
+        .tab-content { display: block; }
+        .tab-content.hidden { display: none; }
+
+        /* ── Flame Graph (existing) ── */
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .controls label {
+            font-size: 13px;
+            color: #aaa;
+        }
+
+        .controls select, .controls button {
+            padding: 6px 12px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background: #16213e;
+            color: #e0e0e0;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .controls button:hover {
+            background: #1f3460;
+        }
+
+        .controls select:focus, .controls button:focus {
+            outline: none;
+            border-color: #e94560;
+        }
+
+        .breadcrumb {
+            margin-bottom: 8px;
+            font-size: 13px;
+            min-height: 20px;
+        }
+
+        .breadcrumb-item {
+            color: #4ea6d2;
+            cursor: pointer;
+        }
+
+        .breadcrumb-item:hover {
+            text-decoration: underline;
+        }
+
+        .breadcrumb-sep {
+            color: #666;
+            margin: 0 4px;
+        }
+
+        .canvas-wrap {
+            background: #0f0f23;
+            border: 1px solid #333;
+            border-radius: 4px;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        #flamegraph {
+            display: block;
+            cursor: pointer;
+        }
+
+        .tooltip {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.92);
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            display: none;
+            z-index: 1000;
+            max-width: 500px;
+            word-break: break-all;
+            line-height: 1.5;
+        }
+
+        .legend {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 60px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .no-data.hidden, .canvas-wrap.hidden { display: none; }
+
+        /* ── Settings ── */
+        .settings {
+            background: #16213e;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .settings-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .settings-header h3 {
+            font-size: 14px;
+            color: #e94560;
+            margin: 0;
+        }
+
+        .settings-header .arrow {
+            color: #888;
+            font-size: 12px;
+            transition: transform 0.2s;
+        }
+
+        .settings-header .arrow.open {
+            transform: rotate(90deg);
+        }
+
+        .settings-body {
+            display: none;
+            margin-top: 10px;
+        }
+
+        .settings-body.open {
+            display: block;
+        }
+
+        .settings-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+
+        .settings-row label {
+            font-size: 12px;
+            color: #aaa;
+            min-width: 100px;
+        }
+
+        .settings-row input {
+            padding: 5px 8px;
+            border: 1px solid #444;
+            border-radius: 3px;
+            background: #0f0f23;
+            color: #e0e0e0;
+            font-size: 13px;
+            width: 200px;
+        }
+
+        .settings-row input:focus {
+            outline: none;
+            border-color: #e94560;
+        }
+
+        /* ── Toggle Switch ── */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 22px;
+            min-width: 0;
+            flex-shrink: 0;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .switch .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #444;
+            border-radius: 22px;
+            transition: 0.2s;
+        }
+
+        .switch .slider:before {
+            content: "";
+            position: absolute;
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            top: 3px;
+            background: #fff;
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+
+        .switch input:checked + .slider {
+            background: #e94560;
+        }
+
+        .switch input:checked + .slider:before {
+            transform: translateX(18px);
+        }
+
+        .settings-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .settings-actions button {
+            padding: 6px 16px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background: #1f3460;
+            color: #e0e0e0;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .settings-actions button:hover {
+            background: #2a4478;
+        }
+
+        .settings-actions button.primary {
+            background: #e94560;
+            border-color: #e94560;
+        }
+
+        .settings-actions button.primary:hover {
+            background: #f06078;
+        }
+
+        .settings-msg {
+            font-size: 12px;
+            color: #5cbea6;
+            margin-top: 6px;
+            min-height: 18px;
+        }
+
+        .settings-msg.error {
+            color: #e94560;
+        }
+
+        /* ── Timeline ── */
+        .tl-filter {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .tl-filter label {
+            font-size: 13px;
+            color: #aaa;
+        }
+
+        .tl-filter input, .tl-filter select {
+            padding: 5px 8px;
+            border: 1px solid #444;
+            border-radius: 3px;
+            background: #0f0f23;
+            color: #e0e0e0;
+            font-size: 13px;
+            width: 140px;
+        }
+
+        .tl-filter input:focus, .tl-filter select:focus {
+            outline: none;
+            border-color: #e94560;
+        }
+
+        .tl-filter button {
+            padding: 5px 14px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background: #1f3460;
+            color: #e0e0e0;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .tl-filter button:hover { background: #2a4478; }
+        .tl-filter button.primary { background: #e94560; border-color: #e94560; }
+        .tl-filter button.primary:hover { background: #f06078; }
+
+        .tl-summary {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 8px;
+            min-height: 18px;
+        }
+
+        .gantt-wrap {
+            background: #0f0f23;
+            border: 1px solid #333;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .gantt-header {
+            height: 32px;
+            background: #16213e;
+            border-bottom: 1px solid #333;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .gantt-body {
+            display: flex;
+        }
+
+        .gantt-lanes {
+            flex-shrink: 0;
+            width: 200px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            border-right: 1px solid #333;
+            /* hide scrollbar but keep scrolling */
+            scrollbar-width: none;
+        }
+        .gantt-lanes::-webkit-scrollbar { display: none; }
+
+        .gantt-lane-label {
+            height: 40px;
+            padding: 6px 8px;
+            font-size: 12px;
+            color: #ccc;
+            border-bottom: 1px solid #222;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 28px;
+        }
+
+        .gantt-canvas-wrap {
+            flex: 1;
+            overflow: auto;
+            position: relative;
+        }
+
+        #tl-canvas {
+            display: block;
+            cursor: crosshair;
+        }
+
+        .gantt-no-data {
+            text-align: center;
+            padding: 80px 20px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .gantt-no-data.hidden { display: none; }
+
+        .tl-legend {
+            display: flex;
+            gap: 16px;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #888;
+        }
+
+        .tl-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .tl-legend-swatch {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+
+        /* ── Errors ── */
+        .err-table-wrap {
+            background: #0f0f23;
+            border: 1px solid #333;
+            border-radius: 4px;
+            overflow: auto;
+            max-height: calc(100vh - 120px);
+        }
+
+        .err-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .err-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .err-table th {
+            background: #16213e;
+            color: #aaa;
+            font-weight: 600;
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+            white-space: nowrap;
+        }
+
+        .err-table td {
+            padding: 6px 12px;
+            border-bottom: 1px solid #1a1a35;
+            color: #ccc;
+            white-space: nowrap;
+        }
+
+        .err-table tbody tr:hover {
+            background: #16213e;
+        }
+
+        .err-table td.col-msg, .err-table td.col-comp {
+            max-width: 320px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .err-table td.col-code {
+            color: #e94560;
+            font-weight: 600;
+        }
+
+        .err-summary {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 8px;
+            min-height: 18px;
+        }
+    </style>
+</head>
+<body>
+<div class="header">
+    <h1>eBPF Profiler</h1>
+    <p>实时性能分析数据可视化</p>
+</div>
+
+<!-- ── Tab Bar ── -->
+<div class="tab-bar">
+    <button class="tab-btn active" data-tab="flame">Flame Graph</button>
+    <button class="tab-btn" data-tab="timeline">Timeline</button>
+    <button class="tab-btn" data-tab="errors">Errors</button>
+</div>
+
+<!-- ══════ Flame Graph Tab ══════ -->
+<div class="tab-content" id="tab-flame">
+
+<div class="settings" id="settings-panel">
+    <div class="settings-header" onclick="toggleSettings()">
+        <h3>Profiling 配置</h3>
+        <span class="arrow" id="settings-arrow">&#9654;</span>
+    </div>
+    <div class="settings-body" id="settings-body">
+        <div class="settings-row">
+            <label>目标 PID（逗号分隔）</label>
+            <input id="cfg-pids" placeholder="留空则 profile 自身">
+        </div>
+        <div class="settings-row">
+            <label>On-CPU 采样频率</label>
+            <input id="cfg-cpu-freq" type="number" placeholder="19">
+        </div>
+        <div class="settings-row">
+            <label>Off-CPU 阈值 (ns)</label>
+            <input id="cfg-offcpu" type="number" placeholder="99">
+        </div>
+        <div class="settings-row">
+            <label>内存采样 Block</label>
+            <input id="cfg-mem-block" type="number" placeholder="128">
+        </div>
+        <div class="settings-row">
+            <label>上报间隔</label>
+            <input id="cfg-interval" placeholder="5s">
+        </div>
+        <div class="settings-row">
+            <label>GPU Host API 追踪</label>
+            <label class="switch">
+                <input type="checkbox" id="cfg-gpu-host-api">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div class="settings-row">
+            <label>GPU Kernel 追踪</label>
+            <label class="switch">
+                <input type="checkbox" id="cfg-gpu-kernel">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div class="settings-actions">
+            <button onclick="loadState()">加载当前配置</button>
+            <button class="primary" onclick="applyState()">应用配置</button>
+        </div>
+        <div class="settings-msg" id="settings-msg"></div>
+    </div>
+</div>
+
+<div class="controls">
+    <label for="pid-select">进程 (PID Hash):</label>
+    <select id="pid-select">
+        <option value="">-- 选择 --</option>
+    </select>
+    <label for="type-select">Profile:</label>
+    <select id="type-select">
+        <option value="">-- 选择 --</option>
+    </select>
+    <button id="refresh-btn" onclick="refreshProfiles()">刷新</button>
+</div>
+
+<div class="breadcrumb" id="breadcrumb"></div>
+<div class="canvas-wrap hidden" id="canvas-wrap">
+    <canvas id="flamegraph"></canvas>
+</div>
+<div class="legend" id="legend"></div>
+<div class="no-data" id="no-data">加载 profile 列表中...</div>
+
+</div><!-- /tab-flame -->
+
+<!-- ══════ Timeline Tab ══════ -->
+<div class="tab-content hidden" id="tab-timeline">
+
+<div class="tl-filter">
+    <label for="tl-flt-pid">PID</label>
+    <select id="tl-flt-pid">
+        <option value="">全部</option>
+    </select>
+    <label for="tl-flt-kind">Kind</label>
+    <select id="tl-flt-kind">
+        <option value="">全部</option>
+        <option value="1">Kernel</option>
+        <option value="2">Host API</option>
+        <option value="3">Memcpy</option>
+    </select>
+    <label for="tl-flt-name">Name</label>
+    <select id="tl-flt-name">
+        <option value="">全部</option>
+    </select>
+    <button onclick="tlRefresh()" class="primary">刷新</button>
+</div>
+<div class="tl-summary" id="tl-summary"></div>
+
+<div class="gantt-wrap" id="gantt-wrap">
+    <div class="gantt-header" id="gantt-header">
+        <canvas id="tl-axis"></canvas>
+    </div>
+    <div class="gantt-body">
+        <div class="gantt-lanes" id="gantt-lanes"></div>
+        <div class="gantt-canvas-wrap" id="gantt-canvas-wrap">
+            <canvas id="tl-canvas"></canvas>
+        </div>
+    </div>
+</div>
+<div class="gantt-no-data" id="gantt-no-data">等待 timeline 数据...</div>
+
+<div class="tl-legend">
+    <div class="tl-legend-item"><span class="tl-legend-swatch" style="background:#F2674E"></span> Kernel (1)</div>
+    <div class="tl-legend-item"><span class="tl-legend-swatch" style="background:#4EA6D2"></span> Host API (2)</div>
+    <div class="tl-legend-item"><span class="tl-legend-swatch" style="background:#5CBEA6"></span> Memcpy (3)</div>
+</div>
+
+</div><!-- /tab-timeline -->
+
+<!-- ══════ Errors Tab ══════ -->
+<div class="tab-content hidden" id="tab-errors">
+
+<div class="err-summary" id="err-summary"></div>
+
+<div class="err-table-wrap">
+    <table class="err-table">
+        <thead>
+            <tr>
+                <th>PID</th>
+                <th>TID</th>
+                <th>Code</th>
+                <th>Message</th>
+                <th>Component</th>
+            </tr>
+        </thead>
+        <tbody id="err-tbody">
+            <tr><td colspan="5" style="text-align:center;color:#666;">加载中...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+</div><!-- /tab-errors -->
+
+<!-- Shared tooltip -->
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════
+// Shared
+// ══════════════════════════════════════════════════════════════════════
+const tooltip = document.getElementById('tooltip');
+
+function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+function fmtNs(ns) {
+    // 将纳秒时间戳转为 HH:MM:SS.mmm
+    const d = new Date(Math.floor(Number(BigInt(ns) / 1000000n)));
+    const hh = String(d.getUTCHours()).padStart(2, '0');
+    const mm = String(d.getUTCMinutes()).padStart(2, '0');
+    const ss = String(d.getUTCSeconds()).padStart(2, '0');
+    const ms = String(d.getUTCMilliseconds()).padStart(3, '0');
+    return hh + ':' + mm + ':' + ss + '.' + ms;
+}
+
+function fmtNsDiff(ns) {
+    // 将纳秒差值格式化为可读字符串
+    if (ns < 1000n) return ns + 'ns';
+    if (ns < 1000000n) return (Number(ns) / 1000).toFixed(1) + 'µs';
+    if (ns < 1000000000n) return (Number(ns) / 1000000).toFixed(2) + 'ms';
+    return (Number(ns) / 1000000000).toFixed(4) + 's';
+}
+
+const KIND_COLORS = {
+    1: '#F2674E',  // Kernel
+    2: '#4EA6D2',  // Host API
+    3: '#5CBEA6',  // Memcpy
+};
+
+const KIND_LABELS = { 1: 'Kernel', 2: 'Host API', 3: 'Memcpy' };
+
+function kindColor(k) { return KIND_COLORS[k] || '#888'; }
+function kindLabel(k) { return KIND_LABELS[k] || '#' + k; }
+
+// ══════════════════════════════════════════════════════════════════════
+// Tab Switching
+// ══════════════════════════════════════════════════════════════════════
+let activeTab = 'flame';
+const tabBtns = document.querySelectorAll('.tab-btn');
+const tabFlame = document.getElementById('tab-flame');
+const tabTimeline = document.getElementById('tab-timeline');
+const tabErrors = document.getElementById('tab-errors');
+
+tabBtns.forEach(btn => {
+    btn.addEventListener('click', function () {
+        tabBtns.forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        activeTab = this.dataset.tab;
+        tabFlame.classList.add('hidden');
+        tabTimeline.classList.add('hidden');
+        tabErrors.classList.add('hidden');
+        if (activeTab === 'flame') {
+            tabFlame.classList.remove('hidden');
+        } else if (activeTab === 'timeline') {
+            tabTimeline.classList.remove('hidden');
+            tlRefresh();
+        } else if (activeTab === 'errors') {
+            tabErrors.classList.remove('hidden');
+            errRefresh();
+        }
+    });
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// Flame Graph (existing logic, unchanged)
+// ══════════════════════════════════════════════════════════════════════
+const FRAME_H = 22, MIN_W = 1, FONT_SZ = 12;
+const COLORS = [
+    '#F2674E', '#F89C4A', '#F1C14B', '#5CBEA6', '#4EA6D2',
+    '#9264A8', '#F05050', '#E8762D', '#F0B928', '#52B85A',
+    '#3A8EC2', '#7B5DA7', '#E64B4B', '#E8922A', '#F3C834',
+    '#4DAF6E', '#2E8AC4', '#8B62A3', '#D93E3E', '#F1802C',
+];
+
+let allProfiles = [];
+let profileTypes = [];
+let flameData = null;
+let zoomStack = [];
+let selectedPid = null, selectedIdx = null;
+
+const pidSel = document.getElementById('pid-select');
+const typeSel = document.getElementById('type-select');
+const fgCanvas = document.getElementById('flamegraph');
+const fgCtx = fgCanvas.getContext('2d');
+const breadcrumb = document.getElementById('breadcrumb');
+const canvasWrap = document.getElementById('canvas-wrap');
+const noData = document.getElementById('no-data');
+const legend = document.getElementById('legend');
+
+function fgColor(name) {
+    let h = 0;
+    for (let i = 0; i < name.length; i++) {
+        h = ((h << 5) - h + name.charCodeAt(i)) | 0;
+    }
+    return COLORS[Math.abs(h) % COLORS.length];
+}
+
+function refreshProfiles() {
+    fetch('/api/profiles')
+        .then(r => r.json())
+        .then(data => {
+            allProfiles = data;
+            renderPidSelector();
+        })
+        .catch(err => { console.error(err); });
+}
+
+function renderPidSelector() {
+    const cur = pidSel.value;
+    pidSel.innerHTML = '<option value="">-- 选择进程 --</option>';
+    allProfiles.forEach(p => {
+        pidSel.innerHTML += '<option value="' + p.pid + '">' + p.pid + ' (' + p.profiles.length + ' profiles)</option>';
+    });
+    pidSel.value = cur;
+    if (allProfiles.length > 0) {
+        noData.classList.add('hidden');
+    } else {
+        noData.classList.remove('hidden');
+        noData.textContent = '等待 profiling 数据...';
+    }
+}
+
+pidSel.addEventListener('change', function () {
+    selectedPid = this.value;
+    typeSel.innerHTML = '<option value="">-- 选择 profile --</option>';
+    profileTypes = [];
+    if (!selectedPid) return;
+
+    const entry = allProfiles.find(p => String(p.pid) === selectedPid);
+    if (!entry) return;
+    profileTypes = entry.profiles;
+    profileTypes.forEach((pt, i) => {
+        typeSel.innerHTML += '<option value="' + i + '">' + pt.sample_type + '</option>';
+    });
+    if (profileTypes.length > 0) {
+        typeSel.value = '0';
+        loadAndRender();
+    }
+});
+
+typeSel.addEventListener('change', function () {
+    selectedIdx = this.value;
+    if (selectedIdx !== '') loadAndRender();
+});
+
+function loadAndRender() {
+    if (!selectedPid || selectedIdx === '') return;
+    fetch('/api/flamegraph?pid=' + selectedPid + '&type=' + selectedIdx)
+        .then(r => {
+            if (!r.ok) throw new Error('Failed');
+            return r.json();
+        })
+        .then(data => {
+            flameData = data;
+            zoomStack = [data];
+            canvasWrap.classList.remove('hidden');
+            noData.classList.add('hidden');
+            renderFG();
+            updateBreadcrumb();
+        })
+        .catch(err => {
+            console.error(err);
+            noData.classList.remove('hidden');
+            noData.textContent = '加载火焰图数据失败';
+        });
+}
+
+function maxDepth(node) {
+    if (!node.children || !node.children.length) return 1;
+    let m = 0;
+    for (const c of node.children) m = Math.max(m, maxDepth(c));
+    return m + 1;
+}
+
+function renderFG() {
+    const root = zoomStack[zoomStack.length - 1];
+    if (!root) return;
+
+    const depth = maxDepth(root);
+    const w = Math.max(canvasWrap.clientWidth - 2, 800);
+    const h = depth * FRAME_H;
+    fgCanvas.width = w;
+    fgCanvas.height = h;
+    fgCanvas.style.width = w + 'px';
+    fgCanvas.style.height = h + 'px';
+
+    fgCtx.clearRect(0, 0, w, h);
+    if (root.value > 0) {
+        renderFGNode(root, 0, 0, w, root.value, 0);
+    }
+    updateLegend(root);
+}
+
+function renderFGNode(node, x, y, w, totalVal) {
+    if (w < MIN_W) return;
+
+    fgCtx.fillStyle = fgColor(node.name);
+    fgCtx.fillRect(x, y, w, FRAME_H - 1);
+
+    if (w > 22) {
+        fgCtx.fillStyle = '#fff';
+        fgCtx.font = FONT_SZ + 'px monospace';
+        fgCtx.save();
+        fgCtx.beginPath();
+        fgCtx.rect(x + 2, y, w - 4, FRAME_H);
+        fgCtx.clip();
+        fgCtx.fillText(node.name, x + 4, y + FRAME_H - 5);
+        fgCtx.restore();
+    }
+
+    if (node.children && node.children.length > 0 && totalVal > 0) {
+        let cx = x;
+        for (const child of node.children) {
+            const cw = (child.value / totalVal) * w;
+            renderFGNode(child, cx, y + FRAME_H, cw, child.value);
+            cx += cw;
+        }
+    }
+}
+
+function updateBreadcrumb() {
+    let html = '';
+    zoomStack.forEach((n, i) => {
+        if (i > 0) html += '<span class="breadcrumb-sep">&#8250;</span>';
+        html += '<span class="breadcrumb-item" data-level="' + i + '">' + esc(n.name) + '</span>';
+    });
+    breadcrumb.innerHTML = html;
+
+    breadcrumb.querySelectorAll('.breadcrumb-item').forEach(el => {
+        el.addEventListener('click', function () {
+            zoomTo(parseInt(this.dataset.level));
+        });
+    });
+}
+
+function zoomTo(level) {
+    zoomStack = zoomStack.slice(0, level + 1);
+    renderFG();
+    updateBreadcrumb();
+}
+
+function updateLegend(root) {
+    const sampleType = profileTypes[parseInt(selectedIdx)];
+    const typeLabel = sampleType ? sampleType.sample_type : '';
+    legend.textContent = '总数: ' + root.value + ' ' + typeLabel + ' | 点击帧可放大，使用面包屑返回';
+}
+
+function fgFindNodeAt(node, tx, ty, nx, nw, totalVal, depth) {
+    const ny = depth * FRAME_H;
+    if (ty >= ny && ty < ny + FRAME_H && tx >= nx && tx < nx + nw) {
+        return node;
+    }
+    if (node.children && ty >= ny + FRAME_H && totalVal > 0) {
+        let cx = nx;
+        for (const child of node.children) {
+            const cw = (child.value / totalVal) * nw;
+            const found = fgFindNodeAt(child, tx, ty, cx, cw, child.value, depth + 1);
+            if (found) return found;
+            cx += cw;
+        }
+    }
+    return null;
+}
+
+fgCanvas.addEventListener('click', function (e) {
+    const rect = fgCanvas.getBoundingClientRect();
+    const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    const root = zoomStack[zoomStack.length - 1];
+    if (!root) return;
+    const node = fgFindNodeAt(root, x, y, 0, fgCanvas.width, root.value, 0);
+    if (node && node.children && node.children.length > 0) {
+        zoomStack.push(node);
+        renderFG();
+        updateBreadcrumb();
+    }
+});
+
+fgCanvas.addEventListener('mousemove', function (e) {
+    const rect = fgCanvas.getBoundingClientRect();
+    const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    const root = zoomStack[zoomStack.length - 1];
+    if (!root) return;
+    const node = fgFindNodeAt(root, x, y, 0, fgCanvas.width, root.value, 0);
+    if (node) {
+        const pct = root.value > 0 ? (node.value / root.value * 100).toFixed(2) : 0;
+        tooltip.innerHTML = esc(node.name) + '<br>' + node.value + ' (' + pct + '%)';
+        tooltip.style.display = 'block';
+        tooltip.style.left = (e.clientX + 12) + 'px';
+        tooltip.style.top = (e.clientY - 8) + 'px';
+    } else {
+        tooltip.style.display = 'none';
+    }
+});
+
+fgCanvas.addEventListener('mouseleave', function () { tooltip.style.display = 'none'; });
+
+window.addEventListener('resize', function () {
+    if (flameData) renderFG();
+});
+
+// ── Settings (existing) ──
+function toggleSettings() {
+    const body = document.getElementById('settings-body');
+    const arrow = document.getElementById('settings-arrow');
+    body.classList.toggle('open');
+    arrow.classList.toggle('open');
+}
+
+function loadState() {
+    document.getElementById('settings-msg').textContent = '';
+    document.getElementById('settings-msg').className = 'settings-msg';
+    fetch('/api/state')
+        .then(r => r.json())
+        .then(s => {
+            document.getElementById('cfg-pids').value = (s.pids || []).join(',');
+            document.getElementById('cfg-cpu-freq').value = s.cpu_on_frequency;
+            document.getElementById('cfg-offcpu').value = s.cpu_off_threshold;
+            document.getElementById('cfg-mem-block').value = s.memory_block;
+            document.getElementById('cfg-interval').value = s.interval;
+            document.getElementById('cfg-gpu-host-api').checked = !!s.gpu_host_api;
+            document.getElementById('cfg-gpu-kernel').checked = !!s.gpu_kernel;
+            showMsg('配置已加载', false);
+        })
+        .catch(err => {
+            console.error(err);
+            showMsg('加载配置失败: ' + err, true);
+        });
+}
+
+function applyState() {
+    const pidsStr = document.getElementById('cfg-pids').value.trim();
+    const cpuFreq = parseInt(document.getElementById('cfg-cpu-freq').value) || 0;
+    const offcpu = parseInt(document.getElementById('cfg-offcpu').value) || 0;
+    const memBlock = parseInt(document.getElementById('cfg-mem-block').value) || 0;
+    const interval = document.getElementById('cfg-interval').value.trim();
+
+    const body = {
+        cpu_on_frequency: cpuFreq,
+        cpu_off_threshold: offcpu,
+        memory_block: memBlock,
+        pids: pidsStr ? pidsStr.split(',').map(Number) : [],
+        interval: interval,
+        gpu_host_api: document.getElementById('cfg-gpu-host-api').checked,
+        gpu_kernel: document.getElementById('cfg-gpu-kernel').checked,
+    };
+
+    document.getElementById('settings-msg').textContent = '';
+    document.getElementById('settings-msg').className = 'settings-msg';
+
+    fetch('/api/state', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body),
+    })
+        .then(r => {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
+        .then(() => showMsg('配置已应用，将在下一个周期生效', false))
+        .catch(err => {
+            console.error(err);
+            showMsg('应用配置失败: ' + err, true);
+        });
+}
+
+function showMsg(msg, isError) {
+    const el = document.getElementById('settings-msg');
+    el.textContent = msg;
+    el.className = 'settings-msg' + (isError ? ' error' : '');
+    if (!isError) setTimeout(() => { el.textContent = ''; }, 3000);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Timeline Gantt
+// ══════════════════════════════════════════════════════════════════════
+const LANE_H = 40;
+const AXIS_H = 32;
+const BAR_MIN_W = 3;
+const TIME_PAD_RATIO = 0.02; // 2% padding on each side
+
+const tlCanvas = document.getElementById('tl-canvas');
+const tlCtx = tlCanvas.getContext('2d');
+const tlAxis = document.getElementById('tl-axis');
+const tlAxisCtx = tlAxis.getContext('2d');
+const tlSummary = document.getElementById('tl-summary');
+const ganttWrap = document.getElementById('gantt-wrap');
+const ganttNoData = document.getElementById('gantt-no-data');
+const ganttLanes = document.getElementById('gantt-lanes');
+const ganttCanvasWrap = document.getElementById('gantt-canvas-wrap');
+const tlFltPid = document.getElementById('tl-flt-pid');
+const tlFltKind = document.getElementById('tl-flt-kind');
+const tlFltName = document.getElementById('tl-flt-name');
+
+let tlData = [];
+let tlAllData = []; // 未过滤的全量数据，用于填充下拉框
+// lanes 结构: { key: "device/stream", device: number, stream: number, items: [...] }
+let tlLanes = [];
+let tlViewRange = null; // null = 自适应全屏; {min, max, span} = 当前缩放视口
+
+// ── 数据加载 & 过滤 ──
+
+function tlRefresh() {
+    // 先拉全量数据（不过滤），用于填充下拉框
+    fetch('/api/timeline')
+        .then(r => r.json())
+        .then(data => {
+            tlAllData = (data || []).map(toTimelineItem);
+            populateFilterDropdowns();
+            tlApplyFilter();
+        })
+        .catch(err => {
+            console.error(err);
+            ganttWrap.style.display = 'none';
+            ganttNoData.classList.remove('hidden');
+            ganttNoData.textContent = '加载 timeline 数据失败';
+            tlSummary.textContent = '';
+        });
+}
+
+function populateFilterDropdowns() {
+    // 提取唯一 PID 和 Name，保留当前选中值
+    const curPid = tlFltPid.value;
+    const curName = tlFltName.value;
+
+    const pids = new Set();
+    const names = new Set();
+    for (const item of tlAllData) {
+        pids.add(item.pid);
+        if (item.name) names.add(item.name);
+    }
+
+    tlFltPid.innerHTML = '<option value="">全部</option>';
+    Array.from(pids).sort((a, b) => a - b).forEach(p => {
+        tlFltPid.innerHTML += '<option value="' + p + '">' + p + '</option>';
+    });
+    if (Array.from(pids).some(p => String(p) === curPid)) tlFltPid.value = curPid;
+
+    tlFltName.innerHTML = '<option value="">全部</option>';
+    Array.from(names).sort().forEach(n => {
+        tlFltName.innerHTML += '<option value="' + escAttr(n) + '">' + esc(n) + '</option>';
+    });
+    if (Array.from(names).some(n => String(n) === curName)) tlFltName.value = curName;
+}
+
+function escAttr(s) { return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+function tlApplyFilter() {
+    const pid = tlFltPid.value;
+    const kind = tlFltKind.value;
+    const name = tlFltName.value;
+
+    tlData = tlAllData.filter(item => {
+        if (pid && String(item.pid) !== pid) return false;
+        if (kind && item.kind !== BigInt(kind)) return false;
+        if (name && item.name !== name) return false;
+        return true;
+    });
+
+    tlViewRange = null; // 重置缩放
+    buildLanes();
+    if (tlLanes.length > 0) {
+        ganttWrap.style.display = '';
+        ganttNoData.classList.add('hidden');
+        renderGantt();
+    } else {
+        ganttWrap.style.display = 'none';
+        ganttNoData.classList.remove('hidden');
+        ganttNoData.textContent = tlAllData.length === 0 ? '等待 timeline 数据...' : '当前过滤条件下无数据';
+    }
+    tlSummary.textContent = tlData.length + ' 条记录, ' + tlLanes.length + ' 个泳道';
+}
+
+// 下拉框变化时重新过滤
+tlFltPid.addEventListener('change', tlApplyFilter);
+tlFltKind.addEventListener('change', tlApplyFilter);
+tlFltName.addEventListener('change', tlApplyFilter);
+
+// ── 数据处理 ──
+
+function toTimelineItem(raw) {
+    return {
+        pid: raw.pid,
+        tid: raw.tid,
+        kind: raw.kind,
+        start: BigInt(raw.start),
+        end: BigInt(raw.end),
+        correlation_id: raw.correlation_id,
+        device_id: raw.device_id,
+        stream_id: raw.stream_id,
+        bytes: BigInt(raw.bytes),
+        copy_kind: raw.copy_kind,
+        sync: raw.sync,
+        graph_id: raw.graph_id,
+        graph_node_id: BigInt(raw.graph_node_id),
+        name: raw.name,
+    };
+}
+
+function buildLanes() {
+    const laneMap = new Map();
+    for (const item of tlData) {
+        const key = item.device_id + '/' + item.stream_id;
+        if (!laneMap.has(key)) {
+            laneMap.set(key, {
+                key: key,
+                device: item.device_id,
+                stream: item.stream_id,
+                items: [],
+            });
+        }
+        laneMap.get(key).items.push(item);
+    }
+    tlLanes = Array.from(laneMap.values());
+    tlLanes.sort((a, b) => a.device !== b.device ? a.device - b.device : a.stream - b.stream);
+}
+
+// 全量数据的时间范围
+function tlDataRange() {
+    let minStart = null, maxEnd = null;
+    for (const item of tlData) {
+        if (minStart === null || item.start < minStart) minStart = item.start;
+        if (maxEnd === null || item.end > maxEnd) maxEnd = item.end;
+    }
+    if (minStart === null) return { min: 0n, max: 1n, span: 1n };
+    const span = maxEnd - minStart;
+    if (span === 0n) return { min: minStart, max: minStart + 1000n, span: 1000n };
+    const pad = span * BigInt(Math.floor(TIME_PAD_RATIO * 100)) / 100n;
+    return { min: minStart - pad, max: maxEnd + pad, span: span + pad * 2n };
+}
+
+// 当前可视范围（缩放状态 or 全量自适应）
+function tlVisibleRange() {
+    if (tlViewRange) return tlViewRange;
+    return tlDataRange();
+}
+
+// ── 渲染 ──
+
+function renderGantt() {
+    const range = tlVisibleRange();
+    const nLanes = tlLanes.length;
+    // Canvas 宽度 = 视口宽度（压缩到一屏）
+    const w = Math.max(ganttCanvasWrap.clientWidth - 2, 600);
+
+    // Set canvas sizes
+    tlAxis.width = w;
+    tlAxis.height = AXIS_H;
+    tlAxis.style.width = w + 'px';
+    tlAxis.style.height = AXIS_H + 'px';
+
+    tlCanvas.width = w;
+    tlCanvas.height = nLanes * LANE_H;
+    tlCanvas.style.width = w + 'px';
+    tlCanvas.style.height = (nLanes * LANE_H) + 'px';
+
+    // ── Draw time axis ──
+    tlAxisCtx.clearRect(0, 0, w, AXIS_H);
+    tlAxisCtx.fillStyle = '#16213e';
+    tlAxisCtx.fillRect(0, 0, w, AXIS_H);
+
+    const tickIntervalNs = pickTickInterval(range.span);
+    const firstTick = (range.min / tickIntervalNs) * tickIntervalNs;
+
+    tlAxisCtx.fillStyle = '#888';
+    tlAxisCtx.font = '11px monospace';
+    tlAxisCtx.strokeStyle = '#333';
+    tlAxisCtx.lineWidth = 0.5;
+
+    for (let t = firstTick; t <= range.max; t += tickIntervalNs) {
+        const x = tlX(t, range, w);
+        tlAxisCtx.beginPath();
+        tlAxisCtx.moveTo(x + 0.5, AXIS_H - 4);
+        tlAxisCtx.lineTo(x + 0.5, AXIS_H);
+        tlAxisCtx.stroke();
+        tlAxisCtx.fillText(fmtNs(t), x + 3, AXIS_H - 6);
+    }
+
+    // ── Draw Gantt bars ──
+    tlCtx.clearRect(0, 0, w, nLanes * LANE_H);
+
+    for (let li = 0; li < nLanes; li++) {
+        const lane = tlLanes[li];
+        const y = li * LANE_H;
+
+        // Lane background
+        tlCtx.fillStyle = li % 2 === 0 ? '#0f0f23' : '#13132b';
+        tlCtx.fillRect(0, y, w, LANE_H);
+
+        // Grid line
+        tlCtx.strokeStyle = '#1a1a35';
+        tlCtx.lineWidth = 0.5;
+        tlCtx.beginPath();
+        tlCtx.moveTo(0, y + LANE_H - 1);
+        tlCtx.lineTo(w, y + LANE_H - 1);
+        tlCtx.stroke();
+
+        // Items
+        for (const item of lane.items) {
+            const x1 = tlX(item.start, range, w);
+            const x2 = tlX(item.end, range, w);
+            const bw = Math.max(x2 - x1, BAR_MIN_W);
+
+            tlCtx.fillStyle = kindColor(item.kind);
+            const barY = y + 4;
+            const barH = LANE_H - 9;
+            const radius = 3;
+            tlCtx.beginPath();
+            tlCtx.moveTo(x1 + radius, barY);
+            tlCtx.lineTo(x1 + bw - radius, barY);
+            tlCtx.arcTo(x1 + bw, barY, x1 + bw, barY + radius, radius);
+            tlCtx.lineTo(x1 + bw, barY + barH - radius);
+            tlCtx.arcTo(x1 + bw, barY + barH, x1 + bw - radius, barY + barH, radius);
+            tlCtx.lineTo(x1 + radius, barY + barH);
+            tlCtx.arcTo(x1, barY + barH, x1, barY + barH - radius, radius);
+            tlCtx.lineTo(x1, barY + radius);
+            tlCtx.arcTo(x1, barY, x1 + radius, barY, radius);
+            tlCtx.closePath();
+            tlCtx.fill();
+
+            // Label if bar is wide enough
+            if (bw > 50) {
+                tlCtx.fillStyle = '#fff';
+                tlCtx.font = '12px monospace';
+                tlCtx.save();
+                tlCtx.beginPath();
+                tlCtx.rect(x1 + 2, barY, bw - 4, barH);
+                tlCtx.clip();
+                const label = item.name || (kindLabel(item.kind) + ' #' + item.correlation_id);
+                tlCtx.fillText(label, x1 + 4, barY + barH - 5);
+                tlCtx.restore();
+            }
+        }
+    }
+
+    // ── Build lane labels ──
+    ganttLanes.innerHTML = '';
+    for (let li = 0; li < nLanes; li++) {
+        const lane = tlLanes[li];
+        const div = document.createElement('div');
+        div.className = 'gantt-lane-label';
+        div.style.background = li % 2 === 0 ? '#0f0f23' : '#13132b';
+        div.textContent = 'Dev ' + lane.device + ' / Str ' + lane.stream + ' (' + lane.items.length + ')';
+        ganttLanes.appendChild(div);
+    }
+
+    // Zoom indicator
+    if (tlViewRange) {
+        tlSummary.textContent = tlData.length + ' 条, ' + tlLanes.length + ' 泳道 | 已缩放 (滚轮缩放, 拖拽平移, 双击重置)';
+    }
+}
+
+function tlX(ns, range, w) {
+    const offset = ns - range.min;
+    if (range.span === 0n) return 0;
+    return Number(offset * BigInt(w) / range.span);
+}
+
+function pickTickInterval(spanNs) {
+    const spanMs = Number(spanNs / 1000000n);
+    const candidates = [
+        1n, 2n, 5n, 10n, 20n, 50n, 100n, 200n, 500n,
+        1000n, 2000n, 5000n, 10000n, 30000n, 60000n, 300000n, 600000n, 3600000n,
+    ];
+    const desiredTicks = 8;
+    const idealMs = BigInt(Math.max(1, Math.floor(spanMs / desiredTicks)));
+    const ideal = idealMs * 1000000n;
+    for (const ms of candidates) {
+        if (ms * 1000000n >= ideal) return ms * 1000000n;
+    }
+    return 3600000n * 1000000n;
+}
+
+// ── 垂直滚动同步 ──
+ganttCanvasWrap.addEventListener('scroll', function () {
+    ganttLanes.scrollTop = ganttCanvasWrap.scrollTop;
+    document.getElementById('gantt-header').scrollLeft = ganttCanvasWrap.scrollLeft;
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// 鼠标交互: 滚轮缩放 + 拖拽平移 + 悬浮 tooltip
+// ══════════════════════════════════════════════════════════════════════
+
+// ── 滚轮缩放 ──
+tlCanvas.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    const rect = tlCanvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const w = tlCanvas.width;
+
+    let range = tlVisibleRange();
+    // 以鼠标位置为中心缩放
+    const ratio = e.deltaY < 0 ? 0.7 : 1.4; // 上滚放大, 下滚缩小
+    const newSpan = range.span * BigInt(Math.round(ratio * 100)) / 100n;
+
+    // 限制缩放范围: 不超过全量数据的 0.1%, 不小于 10ns
+    const fullRange = tlDataRange();
+    const minSpan = fullRange.span / 1000n;
+    const maxSpan = fullRange.span * 1000n;
+    if (newSpan < minSpan || newSpan > maxSpan) return;
+
+    const centerNs = range.min + range.span * BigInt(Math.round(mx)) / BigInt(w);
+    const halfNew = newSpan / 2n;
+    tlViewRange = {
+        min: centerNs - halfNew,
+        max: centerNs + halfNew,
+        span: newSpan,
+    };
+
+    // 如果缩放到接近全量范围, 重置为自适应
+    if (newSpan >= fullRange.span * 9n / 10n) {
+        tlViewRange = null;
+    }
+
+    renderGantt();
+}, { passive: false });
+
+// ── 拖拽平移 ──
+let tlDragging = false;
+let tlDragStartX = 0;
+let tlDragRange = null;
+
+tlCanvas.addEventListener('mousedown', function (e) {
+    tlDragging = true;
+    tlDragStartX = e.clientX;
+    tlDragRange = tlViewRange ? { min: tlViewRange.min, max: tlViewRange.max, span: tlViewRange.span } : tlDataRange();
+    tlCanvas.style.cursor = 'grabbing';
+});
+
+window.addEventListener('mousemove', function (e) {
+    if (!tlDragging) return;
+    const dx = e.clientX - tlDragStartX;
+    const w = tlCanvas.width;
+    const range = tlDragRange;
+    const shiftNs = range.span * BigInt(Math.abs(Math.round(dx))) / BigInt(w) * (dx < 0 ? -1n : 1n);
+    tlViewRange = {
+        min: range.min - shiftNs,
+        max: range.max - shiftNs,
+        span: range.span,
+    };
+    renderGantt();
+});
+
+window.addEventListener('mouseup', function () {
+    if (tlDragging) {
+        tlDragging = false;
+        tlCanvas.style.cursor = 'crosshair';
+    }
+});
+
+// ── 双击重置缩放 ──
+tlCanvas.addEventListener('dblclick', function () {
+    tlViewRange = null;
+    renderGantt();
+});
+
+// ── Tooltip ──
+tlCanvas.addEventListener('mousemove', function (e) {
+    if (tlDragging) { tooltip.style.display = 'none'; return; }
+
+    const rect = tlCanvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    const range = tlVisibleRange();
+    const w = tlCanvas.width;
+    const li = Math.floor(my / LANE_H);
+
+    if (li < 0 || li >= tlLanes.length) {
+        tooltip.style.display = 'none';
+        return;
+    }
+
+    const lane = tlLanes[li];
+    let found = null;
+    for (const item of lane.items) {
+        const x1 = tlX(item.start, range, w);
+        const x2 = tlX(item.end, range, w);
+        if (mx >= x1 && mx <= Math.max(x2, x1 + BAR_MIN_W)) {
+            found = item;
+            break;
+        }
+    }
+
+    if (found) {
+        const durNs = found.end - found.start;
+        tooltip.innerHTML =
+            '<b>' + esc(found.name || (kindLabel(found.kind) + ' op')) + '</b><br>' +
+            'Kind: ' + kindLabel(found.kind) + ' (' + found.kind + ')<br>' +
+            'PID: ' + found.pid + '  TID: ' + found.tid + '<br>' +
+            'Start: ' + fmtNs(found.start) + '<br>' +
+            'End: &nbsp;&nbsp;' + fmtNs(found.end) + '<br>' +
+            'Duration: ' + fmtNsDiff(durNs) + '<br>' +
+            'Bytes: ' + found.bytes.toString() + '<br>' +
+            'Device: ' + found.device_id + '  Stream: ' + found.stream_id +
+            (found.graph_id ? '<br>Graph: ' + found.graph_id + ' Node: ' + found.graph_node_id.toString() : '');
+        tooltip.style.display = 'block';
+        tooltip.style.left = (e.clientX + 12) + 'px';
+        tooltip.style.top = (e.clientY - 8) + 'px';
+    } else {
+        tooltip.style.display = 'none';
+    }
+});
+
+tlCanvas.addEventListener('mouseleave', function () { tooltip.style.display = 'none'; });
+
+// ══════════════════════════════════════════════════════════════════════
+// Errors Table
+// ══════════════════════════════════════════════════════════════════════
+function errRefresh() {
+    fetch('/api/errors')
+        .then(r => r.json())
+        .then(data => {
+            const tbody = document.getElementById('err-tbody');
+            const summary = document.getElementById('err-summary');
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#666;">暂无错误</td></tr>';
+                summary.textContent = '';
+                return;
+            }
+            summary.textContent = data.length + ' 条错误记录';
+            tbody.innerHTML = data.map(e =>
+                '<tr>' +
+                '<td>' + e.pid + '</td>' +
+                '<td>' + (e.tid || '') + '</td>' +
+                '<td class="col-code">' + e.code + '</td>' +
+                '<td class="col-msg" title="' + esc(e.message) + '">' + esc(e.message) + '</td>' +
+                '<td class="col-comp" title="' + esc(e.component) + '">' + esc(e.component) + '</td>' +
+                '</tr>'
+            ).join('');
+        })
+        .catch(err => {
+            console.error(err);
+            document.getElementById('err-tbody').innerHTML = '<tr><td colspan="5" style="text-align:center;color:#e94560;">加载失败</td></tr>';
+        });
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Init
+// ══════════════════════════════════════════════════════════════════════
+refreshProfiles();
+setInterval(refreshProfiles, 5000);
+</script>
+</body>
+</html>

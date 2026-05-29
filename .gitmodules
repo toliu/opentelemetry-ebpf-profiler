@@ -1,0 +1,3 @@
+[submodule "parcagpu"]
+	path = vendoring/parcagpu
+	url = git@github.com:toliu/parcagpu.git

@@ -7,20 +7,21 @@
 package support // import "go.opentelemetry.io/ebpf-profiler/support"
 
 const (
-	FrameMarkerUnknown  = 0x0
-	FrameMarkerErrorBit = 0x80
-	FrameMarkerPython   = 0x1
-	FrameMarkerNative   = 0x3
-	FrameMarkerPHP      = 0x2
-	FrameMarkerPHPJIT   = 0x9
-	FrameMarkerKernel   = 0x4
-	FrameMarkerHotSpot  = 0x5
-	FrameMarkerRuby     = 0x6
-	FrameMarkerPerl     = 0x7
-	FrameMarkerV8       = 0x8
-	FrameMarkerDotnet   = 0xa
-	FrameMarkerGolang   = 0xb
-	FrameMarkerAbort    = 0xff
+	FrameMarkerUnknown    = 0x0
+	FrameMarkerErrorBit   = 0x80
+	FrameMarkerPython     = 0x1
+	FrameMarkerNative     = 0x3
+	FrameMarkerPHP        = 0x2
+	FrameMarkerPHPJIT     = 0x9
+	FrameMarkerKernel     = 0x4
+	FrameMarkerHotSpot    = 0x5
+	FrameMarkerRuby       = 0x6
+	FrameMarkerPerl       = 0x7
+	FrameMarkerV8         = 0x8
+	FrameMarkerDotnet     = 0xa
+	FrameMarkerGolang     = 0xb
+	FrameMarkerCUDAKernel = 0xe
+	FrameMarkerAbort      = 0xff
 )
 
 const (
@@ -79,10 +80,12 @@ const (
 )
 
 const (
-	TraceOriginUnknown  = 0x0
-	TraceOriginSampling = 0x1
-	TraceOriginOffCPU   = 0x2
-	TraceOriginHeap     = 0x3
+	TraceOriginUnknown         = 0x0
+	TraceOriginSampling        = 0x1
+	TraceOriginOffCPU          = 0x2
+	TraceOriginHeap            = 0x3
+	TraceOriginCuda            = 0x4
+	TraceOriginCudaSynchronize = 0x5
 )
 
 const OffCPUThresholdMax = 0x3e8
@@ -122,6 +125,35 @@ type RubyProcInfo struct {
 	Running_ec                   uint16
 	Pad_cgo_0                    [2]byte
 }
+type Timeline struct {
+	Pid           uint32
+	Kind          uint64
+	Start         uint64
+	End           uint64
+	CorrelationId uint32
+	DeviceId      uint32
+	StreamId      uint32
+	Tid           uint32
+	Bytes         uint64
+	CopyKind      uint16
+	Sync          uint16
+	GraphId       uint32
+	GraphNodeId   uint64
+	Name          [256]int8
+}
+type ErrorEvent struct {
+	Pid       uint32
+	Tid       uint32
+	Code      int32
+	Message   [128]int8
+	Component [64]int8
+}
+
+const (
+	ActivityKindKernel  = 0x1
+	ActivityKindHostApi = 0x2
+	ActivityKindMemcpy  = 0x3
+)
 
 const (
 	sizeof_ApmIntProcInfo = 0x8

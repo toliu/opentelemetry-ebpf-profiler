@@ -8,24 +8,26 @@ package support // import "go.opentelemetry.io/ebpf-profiler/support"
 /*
 #include "./ebpf/types.h"
 #include "./ebpf/frametypes.h"
+#include "./ebpf/cupti_activity_bpf.h"
 */
 import "C"
 
 const (
-	FrameMarkerUnknown  = C.FRAME_MARKER_UNKNOWN
-	FrameMarkerErrorBit = C.FRAME_MARKER_ERROR_BIT
-	FrameMarkerPython   = C.FRAME_MARKER_PYTHON
-	FrameMarkerNative   = C.FRAME_MARKER_NATIVE
-	FrameMarkerPHP      = C.FRAME_MARKER_PHP
-	FrameMarkerPHPJIT   = C.FRAME_MARKER_PHP_JIT
-	FrameMarkerKernel   = C.FRAME_MARKER_KERNEL
-	FrameMarkerHotSpot  = C.FRAME_MARKER_HOTSPOT
-	FrameMarkerRuby     = C.FRAME_MARKER_RUBY
-	FrameMarkerPerl     = C.FRAME_MARKER_PERL
-	FrameMarkerV8       = C.FRAME_MARKER_V8
-	FrameMarkerDotnet   = C.FRAME_MARKER_DOTNET
-	FrameMarkerGolang   = C.FRAME_MARKER_GOLANG
-	FrameMarkerAbort    = C.FRAME_MARKER_ABORT
+	FrameMarkerUnknown    = C.FRAME_MARKER_UNKNOWN
+	FrameMarkerErrorBit   = C.FRAME_MARKER_ERROR_BIT
+	FrameMarkerPython     = C.FRAME_MARKER_PYTHON
+	FrameMarkerNative     = C.FRAME_MARKER_NATIVE
+	FrameMarkerPHP        = C.FRAME_MARKER_PHP
+	FrameMarkerPHPJIT     = C.FRAME_MARKER_PHP_JIT
+	FrameMarkerKernel     = C.FRAME_MARKER_KERNEL
+	FrameMarkerHotSpot    = C.FRAME_MARKER_HOTSPOT
+	FrameMarkerRuby       = C.FRAME_MARKER_RUBY
+	FrameMarkerPerl       = C.FRAME_MARKER_PERL
+	FrameMarkerV8         = C.FRAME_MARKER_V8
+	FrameMarkerDotnet     = C.FRAME_MARKER_DOTNET
+	FrameMarkerGolang     = C.FRAME_MARKER_GOLANG
+	FrameMarkerCUDAKernel = C.FRAME_MARKER_CUDA_KERNEL
+	FrameMarkerAbort      = C.FRAME_MARKER_ABORT
 )
 
 const (
@@ -88,10 +90,12 @@ const (
 )
 
 const (
-	TraceOriginUnknown  = C.TRACE_UNKNOWN
-	TraceOriginSampling = C.TRACE_SAMPLING
-	TraceOriginOffCPU   = C.TRACE_OFF_CPU
-	TraceOriginHeap     = C.TRACE_HEAP_ALLOC
+	TraceOriginUnknown         = C.TRACE_UNKNOWN
+	TraceOriginSampling        = C.TRACE_SAMPLING
+	TraceOriginOffCPU          = C.TRACE_OFF_CPU
+	TraceOriginHeap            = C.TRACE_HEAP_ALLOC
+	TraceOriginCuda            = C.TRACE_CUDA_LAUNCH
+	TraceOriginCudaSynchronize = C.TRACE_CUDA_SYNCHRONIZE
 )
 
 const OffCPUThresholdMax = C.OFF_CPU_THRESHOLD_MAX
@@ -100,6 +104,14 @@ type ApmIntProcInfo C.ApmIntProcInfo
 type DotnetProcInfo C.DotnetProcInfo
 type PHPProcInfo C.PHPProcInfo
 type RubyProcInfo C.RubyProcInfo
+type Timeline C.timeline
+type ErrorEvent C.error_event
+
+const (
+	ActivityKindKernel  = C.ACTIVITY_KIND_KERNEL
+	ActivityKindHostApi = C.ACTIVITY_KIND_HOST_API
+	ActivityKindMemcpy  = C.ACTIVITY_KIND_MEMCPY
+)
 
 const (
 	sizeof_ApmIntProcInfo = C.sizeof_ApmIntProcInfo

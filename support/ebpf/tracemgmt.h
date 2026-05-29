@@ -22,6 +22,18 @@
   int kprobe_##func_name(struct pt_regs *ctx)                                                      \
   {                                                                                                \
     return func_name(ctx);                                                                         \
+  }                                                                                                \
+                                                                                                   \
+  SEC("uprobe/" #func_name)                                                                        \
+  int uprobe_##func_name(struct pt_regs *ctx)                                                      \
+  {                                                                                                \
+    return func_name(ctx);                                                                         \
+  }                                                                                                \
+                                                                                                   \
+  SEC("usdt/" #func_name)                                                                          \
+  int usdt_##func_name(struct pt_regs *ctx)                                                        \
+  {                                                                                                \
+    return func_name(ctx);                                                                         \
   }
 
 // increment_metric increments the value of the given metricID by 1
@@ -680,7 +692,6 @@ get_usermode_regs(struct pt_regs *ctx, UnwindState *state, bool *has_usermode_re
 
 #endif // TESTING_COREDUMP
 
-
 static inline __attribute__((__always_inline__)) bool should_trace_pid(u32 pid)
 {
   u32 key0 = 0;
@@ -699,9 +710,16 @@ static inline __attribute__((__always_inline__)) int handle_mem_free(struct pt_r
   return 0;
 }
 
-
 static inline __attribute__((__always_inline__)) int collect_trace(
-  struct pt_regs *ctx, TraceOrigin origin, u32 pid, u32 tid, u64 trace_timestamp, u64 off_cpu_time, u64 bytes_alloc, u64 mem_addr)
+  struct pt_regs *ctx,
+  TraceOrigin origin,
+  u32 pid,
+  u32 tid,
+  u64 trace_timestamp,
+  u64 off_cpu_time,
+  u64 bytes_alloc,
+  u64 mem_addr,
+  u64 cuda_id)
 {
   // The trace is reused on each call to this function so we have to reset the
   // variables used to maintain state.
@@ -711,14 +729,14 @@ static inline __attribute__((__always_inline__)) int collect_trace(
     return -1;
   }
 
-  Trace *trace   = &record->trace;
-  trace->origin  = origin;
-  trace->pid     = pid;
-  trace->tid     = tid;
-  trace->ktime   = trace_timestamp;
-  trace->offtime = off_cpu_time;
+  Trace *trace     = &record->trace;
+  trace->origin    = origin;
+  trace->pid       = pid;
+  trace->tid       = tid;
+  trace->ktime     = trace_timestamp;
+  trace->offtime   = off_cpu_time;
   trace->mem_alloc = bytes_alloc;
-  trace->mem_addr = mem_addr;
+  trace->mem_addr  = mem_addr;
   if (bpf_get_current_comm(&(trace->comm), sizeof(trace->comm)) < 0) {
     increment_metric(metricID_ErrBPFCurrentComm);
   }
@@ -729,6 +747,11 @@ static inline __attribute__((__always_inline__)) int collect_trace(
   // this indicates mem free, we just send trace without unwinding stack
   if (bytes_alloc > 0 && off_cpu_time == 0) {
     return handle_mem_free(ctx);
+  }
+
+  if (cuda_id != 0) {
+    // Create a CUDA kernel frame, Symbolize will later resolve the kernel name from the ID.
+    _push(trace, 0, cuda_id, FRAME_MARKER_CUDA_KERNEL);
   }
 
   // Recursive unwind frames

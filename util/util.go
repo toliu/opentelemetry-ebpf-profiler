@@ -6,10 +6,13 @@ package util // import "go.opentelemetry.io/ebpf-profiler/util"
 import (
 	"math/bits"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/cilium/ebpf"
+	"github.com/cilium/ebpf/asm"
 	"github.com/sirupsen/logrus"
 
 	"go.opentelemetry.io/ebpf-profiler/libpf/hash"
@@ -102,3 +105,41 @@ type OnDiskFileIdentifier struct {
 func (odfi OnDiskFileIdentifier) Hash32() uint32 {
 	return uint32(hash.Uint64(odfi.InodeNum) + odfi.DeviceID)
 }
+
+// probeBpfGetAttachCookie tests if the kernel supports bpf_get_attach_cookie by attempting
+// to load a minimal BPF program that uses it. This is more reliable than checking kernel
+// versions since support can be backported.
+var probeBpfGetAttachCookie = sync.OnceValue[bool](func() bool {
+	// Create a minimal program that calls bpf_get_attach_cookie
+	// This is equivalent to libbpf's probe_kern_bpf_cookie function
+	insns := asm.Instructions{
+		// Call bpf_get_attach_cookie() - BPF_FUNC_get_attach_cookie = 80
+		asm.FnGetAttachCookie.Call(),
+		// Exit
+		asm.Return(),
+	}
+
+	spec := &ebpf.ProgramSpec{
+		Type:         ebpf.TracePoint,
+		Instructions: insns,
+		License:      "GPL",
+	}
+
+	prog, err := ebpf.NewProgramWithOptions(spec, ebpf.ProgramOptions{
+		LogDisabled: true,
+	})
+	if err != nil {
+		return false
+	}
+	if err := prog.Close(); err != nil {
+		logrus.Warnf("Failed to close test program: %v", err)
+	}
+	return true
+})
+
+// HasBpfGetAttachCookie checks if the kernel supports the bpf_get_attach_cookie helper.
+// This function uses a cached, once-calculated value for performance.
+//
+// Note: This function requires CAP_BPF or CAP_SYS_ADMIN capabilities to load the probe
+// program. The profiler should already have these privileges.
+func HasBpfGetAttachCookie() bool { return probeBpfGetAttachCookie() }

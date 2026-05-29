@@ -50,12 +50,12 @@ bpf_map_def SEC("maps") unwind_info_array = {
 };
 
 // The number of native frames to unwind per frame-unwinding eBPF program.
-// In order to be compatible with the old kylin system and to control the unwind_native program instructions below 4096, 
-// the number of loops is reduced here
+// In order to be compatible with the old kylin system and to control the unwind_native program
+// instructions below 4096, the number of loops is reduced here
 #if defined(__x86_64__)
-#define NATIVE_FRAMES_PER_PROGRAM 4
+  #define NATIVE_FRAMES_PER_PROGRAM 4
 #elif defined(__aarch64__)
-#define NATIVE_FRAMES_PER_PROGRAM 3
+  #define NATIVE_FRAMES_PER_PROGRAM 3
 #endif
 
 // The decision whether to unwind native stacks or interpreter stacks is made by checking if a given
@@ -86,7 +86,6 @@ bpf_map_def SEC("maps") kernel_stackmap = {
   .value_size  = PERF_MAX_STACK_DEPTH * sizeof(u64),
   .max_entries = 16 * 1024,
 };
-
 
 bpf_map_def SEC("maps") target_pids = {
   .type        = BPF_MAP_TYPE_HASH,
@@ -655,10 +654,10 @@ int native_tracer_entry(struct bpf_perf_event_data *ctx)
   }
 
   if (!should_trace_pid(pid)) {
-        return 0;
+    return 0;
   }
 
   u64 ts = bpf_ktime_get_ns();
-  return collect_trace((struct pt_regs *)&ctx->regs, TRACE_SAMPLING, pid, tid, ts, 0, 0, 0);
+  return collect_trace((struct pt_regs *)&ctx->regs, TRACE_SAMPLING, pid, tid, ts, 0, 0, 0, 0);
 }
 MULTI_USE_FUNC(unwind_native)

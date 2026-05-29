@@ -27,7 +27,7 @@ int tracepoint__sched_switch(void *ctx)
   u32 tid      = pid_tgid & 0xFFFFFFFF;
 
   if (!should_trace_pid(pid)) {
-      return 0;
+    return 0;
   }
 
   if (pid == 0 || tid == 0) {
@@ -74,7 +74,6 @@ int finish_task_switch(struct pt_regs *ctx)
   u32 pid      = pid_tgid >> 32;
   u32 tid      = pid_tgid & 0xFFFFFFFF;
 
-
   if (pid == 0 || tid == 0) {
     return 0;
   }
@@ -91,5 +90,5 @@ int finish_task_switch(struct pt_regs *ctx)
   u64 diff = ts - *start_ts;
   DEBUG_PRINT("==== finish_task_switch ====");
 
-  return collect_trace(ctx, TRACE_OFF_CPU, pid, tid, ts, diff, 0, 0);
+  return collect_trace(ctx, TRACE_OFF_CPU, pid, tid, ts, diff, 0, 0, 0);
 }

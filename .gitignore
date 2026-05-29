@@ -6,3 +6,6 @@
 ebpf-profiler
 ci-kernels
 /target
+
+.claude/
+.vscode/

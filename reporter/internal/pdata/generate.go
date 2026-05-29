@@ -123,9 +123,9 @@ func (p *Pdata) setProfile(
 		case support.TraceOriginSampling:
 			sample.Value().Append(1)
 		case support.TraceOriginOffCPU:
-			sample.Value().Append(traceInfo.OffTimes...)
+			//sample.Value().Append(traceInfo.OffTimes...)
 		case support.TraceOriginHeap:
-			sample.Value().Append(traceInfo.MemAlloc...)
+			//sample.Value().Append(traceInfo.MemAlloc...)
 		}
 
 		// Walk every frame of the trace.

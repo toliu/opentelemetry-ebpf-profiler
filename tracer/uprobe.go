@@ -12,12 +12,12 @@ import (
 	cebpf "github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 	log "github.com/sirupsen/logrus"
-
 	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
 	"github.com/toliu/opentelemetry-ebpf-profiler/process"
 	"github.com/toliu/opentelemetry-ebpf-profiler/processmanager"
 	"github.com/toliu/opentelemetry-ebpf-profiler/reporter"
 	"github.com/toliu/opentelemetry-ebpf-profiler/reporter/hotspotmem"
+	"golang.org/x/exp/maps"
 )
 
 // #include "../support/ebpf/types.h"
@@ -36,6 +36,15 @@ type uprobe struct {
 	canFail             bool
 	pid                 int
 	opts                *link.UprobeOptions
+}
+
+const maxMemProfileRetries = 5
+
+// memProfileEntry tracks per-PID memory profiling hook state and retry count.
+type memProfileEntry struct {
+	links     []*link.Link
+	failCount int
+	hooked    bool // true if hooks were successfully attached at least once
 }
 
 // loadUProbeUnwinders reuses large parts of loadPerfUnwinders. By default all eBPF programs
@@ -111,21 +120,23 @@ func (t *Tracer) AttachUProbes(u *uprobe) ([]*link.Link, error) {
 	return resLinks, nil
 }
 
-func (t *Tracer) detachMemProfile(pid libpf.PID) {
-	memProfileHooks := t.memProfileHooks.WLock()
-	if links, ok := (*memProfileHooks)[pid]; ok {
-		for _, _link := range links {
-			if e := (*_link).Close(); e != nil {
-				log.Debugf("failed to close memprofile link{ pid:%d, link:%v, err: %v", pid, _link, e)
+func (t *Tracer) detachMemProfile(pids ...libpf.PID) {
+	for _, pid := range pids {
+		mh := t.memProfileHooks.WLock()
+		if entry, ok := (*mh)[pid]; ok && entry.links != nil {
+			for _, _link := range entry.links {
+				if e := (*_link).Close(); e != nil {
+					log.Debugf("failed to close memprofile link{ pid:%d, link:%v, err: %v", pid, _link, e)
+				}
 			}
 		}
+		delete(*mh, pid)
+		t.memProfileHooks.WUnlock(&mh)
+		if r, ok := t.reporter.(reporter.HotspotMemReporter); ok {
+			r.StopHotspotMemProfiling(int(pid))
+		}
+		log.Tracef("detachMemProfile for pid %v", pid)
 	}
-	delete(*memProfileHooks, pid)
-	t.memProfileHooks.WUnlock(&memProfileHooks)
-	if r, ok := t.reporter.(reporter.HotspotMemReporter); ok {
-		r.StopHotspotMemProfiling(int(pid))
-	}
-	log.Tracef("detachMemProfile for pid %v", pid)
 }
 
 // StartCLikeMemProfiling starts mem profiling for c/c++/rust by attaching the programs to the hooks.
@@ -196,16 +207,20 @@ func (t *Tracer) StartPythonMemProfiling(exec *link.Executable, _ *processmanage
 }
 
 func (t *Tracer) hasMemProfileHooks(pid libpf.PID) bool {
-	memProfileHooks := t.memProfileHooks.RLock()
-	_, exist := (*memProfileHooks)[pid]
-	t.memProfileHooks.RUnlock(&memProfileHooks)
-	return exist
+	mh := t.memProfileHooks.RLock()
+	entry := (*mh)[pid]
+	t.memProfileHooks.RUnlock(&mh)
+	if entry == nil {
+		return false
+	}
+	// Hook was successfully attached, or we've given up after max retries.
+	return entry.hooked || entry.failCount >= maxMemProfileRetries
 }
 
 func (t *Tracer) updateMemProfileHooks(pid libpf.PID, links []*link.Link) {
-	memProfileHooks := t.memProfileHooks.WLock()
-	(*memProfileHooks)[pid] = links
-	t.memProfileHooks.WUnlock(&memProfileHooks)
+	mh := t.memProfileHooks.WLock()
+	(*mh)[pid] = &memProfileEntry{links: links, hooked: true}
+	t.memProfileHooks.WUnlock(&mh)
 }
 
 func (t *Tracer) triggerMemProfile(p process.Process) error {
@@ -217,6 +232,11 @@ func (t *Tracer) triggerMemProfile(p process.Process) error {
 	if memProfileInfo == nil {
 		return fmt.Errorf("unable to start memprofile with pid: %d, can not find MemProfile MetaInfo", pid)
 	}
+
+	if t.profilingFilter != nil && !t.profilingFilter.ShouldProfileMem(pid, memProfileInfo.Lang) {
+		return nil
+	}
+
 	var startProfiling func(exec *link.Executable, info *processmanager.MemProfileMeta, pid int, opts *link.UprobeOptions) ([]*link.Link, error)
 	var exec *link.Executable
 	var execPath string
@@ -231,7 +251,7 @@ func (t *Tracer) triggerMemProfile(p process.Process) error {
 			t.detachMemProfile(pid)
 			return err
 		}
-		t.updateMemProfileHooks(pid, nil)
+		t.updateMemProfileHooks(pid, []*link.Link{})
 		return nil
 	case libpf.Python:
 		startProfiling = t.StartPythonMemProfiling
@@ -283,37 +303,47 @@ func (t *Tracer) monitorMemProfilePids(keys *[]uint32) {
 	if t.memProfileBlock.Load() == 0 {
 		return
 	}
-	var memProfileTargetPids []libpf.PID
-	t.memProfileTargetPids.Range(func(k, v interface{}) bool {
-		pid := k.(libpf.PID)
-		if pid == 0 {
-			return true
-		}
-		if add, ok := v.(bool); ok {
-			if !add {
-				t.detachMemProfile(pid)
-				t.memProfileTargetPids.Delete(k)
-			} else {
-				memProfileTargetPids = append(memProfileTargetPids, pid)
-				if t.hasMemProfileHooks(pid) {
-					return true
-				}
-				*keys = append(*keys, pid.Hash32())
-				if err := t.triggerMemProfile(process.New(pid)); err != nil {
-					log.Debugf("failed to trigger memprofile for process %v: %v", k, err)
-				}
-			}
-		}
-		return true
-	})
-	log.Debugf("apply mem profiling target pids: %v", memProfileTargetPids)
-}
 
-func (t *Tracer) SyncMemProfileTargetPids(targetPids map[libpf.PID]bool) {
-	t.memProfileTargetPids.Clear()
-	for pid, add := range targetPids {
-		t.memProfileTargetPids.Store(pid, add)
+	// Allocates a full copy each cycle — acceptable for small PID sets.
+	pids := t.profilingFilter.MemFilter().Snapshot()
+
+	currentTargetPids := map[libpf.PID]struct{}{}
+	for pid, add := range pids {
+		if pid == 0 {
+			continue
+		}
+		if !add {
+			t.detachMemProfile(pid)
+			continue
+		}
+		currentTargetPids[pid] = struct{}{}
+		if t.hasMemProfileHooks(pid) {
+			continue
+		}
+		*keys = append(*keys, pid.Hash32())
+		if err := t.triggerMemProfile(process.New(pid)); err != nil {
+			mh := t.memProfileHooks.WLock()
+			entry := (*mh)[pid]
+			if entry == nil {
+				entry = &memProfileEntry{}
+				(*mh)[pid] = entry
+			}
+			entry.failCount++
+			log.Debugf("failed to trigger memprofile for process %v (attempt %d/%d): %v",
+				pid, entry.failCount, maxMemProfileRetries, err)
+			t.memProfileHooks.WUnlock(&mh)
+		}
 	}
+	log.Debugf("apply mem profiling target pids: %v", maps.Keys(currentTargetPids))
+	var deletedPids []libpf.PID
+	mh := t.memProfileHooks.RLock()
+	for pid := range *mh {
+		if _, has := currentTargetPids[pid]; !has {
+			deletedPids = append(deletedPids, pid)
+		}
+	}
+	t.memProfileHooks.RUnlock(&mh)
+	t.detachMemProfile(deletedPids...)
 }
 
 func (t *Tracer) SyncMemProfileBlock(block uint64) error {

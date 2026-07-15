@@ -14,7 +14,6 @@ import (
 	"math/rand/v2"
 	"sort"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -130,9 +129,9 @@ type Tracer struct {
 
 	// probabilisticThreshold holds the threshold for probabilistic profiling.
 	probabilisticThreshold uint
-	memProfileHooks        xsync.RWMutex[map[libpf.PID][]*link.Link]
+	memProfileHooks        xsync.RWMutex[map[libpf.PID]*memProfileEntry]
 	memProfileBlock        atomic.Uint64
-	memProfileTargetPids   sync.Map
+	profilingFilter        libpf.ProcessFilter
 }
 
 type Config struct {
@@ -161,8 +160,9 @@ type Config struct {
 	// OffCPUThreshold is the user defined threshold for off-cpu profiling.
 	OffCPUThreshold uint32
 	// MemProfile switch memprofile
-	// TargetPIDs is a list of PIDs to target for profiling.
-	TargetPIDs map[libpf.PID]bool
+	// TargetPIDs is the PIDFilter for CPU profiling target PID filtering.
+	// ProfilingFilter defines the profiling policy (PID filters, language rules).
+	ProfilingFilter libpf.ProcessFilter
 	// 每分配MemProfileBlock字节的内存就采集一次
 	MemProfileBlock uint64
 }
@@ -305,12 +305,9 @@ func NewTracer(ctx context.Context, cfg *Config) (*Tracer, error) {
 
 	processManager, err := pm.New(ctx, cfg.IncludeTracers, cfg.Intervals.MonitorInterval(),
 		ebpfHandler, nil, cfg.Reporter, elfunwindinfo.NewStackDeltaProvider(),
-		cfg.FilterErrorFrames, cfg.TargetPIDs)
+		cfg.FilterErrorFrames, cfg.ProfilingFilter)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create processManager: %v", err)
-	}
-	if err = processManager.ConfigureTargetPids(); err != nil {
-		return nil, fmt.Errorf("failed to configure target PIDs: %v", err)
 	}
 
 	const fallbackSymbolsCacheSize = 16384
@@ -326,9 +323,9 @@ func NewTracer(ctx context.Context, cfg *Config) (*Tracer, error) {
 	}
 
 	perfEventList := []*perf.Event{}
-	memProfileHooks := map[libpf.PID][]*link.Link{}
+	memProfileHooks := map[libpf.PID]*memProfileEntry{}
 
-	return &Tracer{
+	t := &Tracer{
 		processManager:         processManager,
 		kernelSymbols:          kernelSymbols,
 		kernelModules:          kernelModules,
@@ -346,8 +343,10 @@ func NewTracer(ctx context.Context, cfg *Config) (*Tracer, error) {
 		probabilisticInterval:  cfg.ProbabilisticInterval,
 		probabilisticThreshold: cfg.ProbabilisticThreshold,
 		memProfileHooks:        xsync.NewRWMutex(memProfileHooks),
-		memProfileTargetPids:   sync.Map{},
-	}, nil
+	}
+
+	t.profilingFilter = cfg.ProfilingFilter
+	return t, nil
 }
 
 // Close provides functionality for Tracer to perform cleanup tasks.
@@ -365,21 +364,23 @@ func (t *Tracer) Close() {
 	*events = nil
 	t.perfEntrypoints.WUnlock(&events)
 
-	memProfileHooks := t.memProfileHooks.WLock()
-	for pid, links := range *memProfileHooks {
-		if links == nil {
+	mh := t.memProfileHooks.WLock()
+	for pid, entry := range *mh {
+		if entry == nil || entry.links == nil {
 			if r, ok := t.reporter.(reporter.HotspotMemReporter); ok {
 				r.StopHotspotMemProfiling(int(pid))
 			}
 		}
-		for _, l := range links {
-			if err := (*l).Close(); err != nil {
-				log.Errorf("Failed to close mem profile hook: %v", err)
+		if entry != nil {
+			for _, l := range entry.links {
+				if err := (*l).Close(); err != nil {
+					log.Errorf("Failed to close mem profile hook: %v", err)
+				}
 			}
 		}
 	}
-	memProfileHooks = nil
-	t.memProfileHooks.WUnlock(&memProfileHooks)
+	mh = nil
+	t.memProfileHooks.WUnlock(&mh)
 
 	// Avoid resource leakage by closing all kernel hooks.
 	for hookPoint, hook := range t.hooks {
@@ -1409,8 +1410,4 @@ func (t *Tracer) StartOffCPUProfiling() error {
 // TraceProcessor gets the trace processor.
 func (t *Tracer) TraceProcessor() tracehandler.TraceProcessor {
 	return t.processManager
-}
-
-func (t *Tracer) SyncTargetPIDs(targetPids map[libpf.PID]bool) error {
-	return t.processManager.SyncTargetPids(targetPids)
 }

@@ -169,6 +169,8 @@ func (pm *ProcessManager) setProcessMemProfileMeta(lanVer string, pid libpf.PID,
 			lan = libpf.Python
 		case "Java":
 			lan = libpf.HotSpot
+		case "V8":
+			lan = libpf.V8
 		default:
 			lan = libpf.UnknownInterp
 		}

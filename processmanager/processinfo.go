@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -628,6 +629,9 @@ func (pm *ProcessManager) synchronizeMappings(pr process.Process,
 		_info.memProfileMeta.LibPythonPath = libPythonPath
 		if _info.memProfileMeta.Lang == libpf.UnknownInterp {
 			_info.memProfileMeta.Lang = lan
+			if strings.EqualFold(filepath.Base(_info.memProfileMeta.ExecAbsPath), `node`) {
+				_info.memProfileMeta.Lang = libpf.V8
+			}
 		}
 	}
 	pm.mu.Unlock()

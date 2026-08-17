@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/google/uuid"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -11,14 +10,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/collector/pdata/pcommon"
+	"go.opentelemetry.io/collector/pdata/pprofile"
+	"golang.org/x/sys/unix"
+
 	"github.com/toliu/opentelemetry-ebpf-profiler/colasoft"
 	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
 	"github.com/toliu/opentelemetry-ebpf-profiler/reporter"
 	"github.com/toliu/opentelemetry-ebpf-profiler/reporter/samples"
-	"go.opentelemetry.io/collector/pdata/pcommon"
-	"go.opentelemetry.io/collector/pdata/pprofile"
-	"golang.org/x/sys/unix"
 )
 
 type (
@@ -175,7 +176,7 @@ func main() {
 	c := colasoft.NewCollector(attrs)
 	cfg := colasoft.StartCfg{0, 0, 5000, time.Second * 5,
 		time.Minute, map[libpf.PID]bool{}, map[libpf.PID]bool{},
-		1024 * 2048}
+		nil, 1024 * 2048}
 
 	if err := c.Start(ctx, cfg); err != nil {
 		log.Fatal(err)

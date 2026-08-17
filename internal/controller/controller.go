@@ -150,13 +150,17 @@ func (c *Controller) Start(ctx context.Context) error {
 
 // Shutdown stops the controller
 func (c *Controller) Shutdown() {
-	log.Trace("Stop processing ...")
+	log.Infof("stop profiling ...")
 	if c.reporter != nil {
+		begin := time.Now()
 		c.reporter.Stop()
+		log.Infof("stop reporter: duration(%s)", time.Since(begin))
 	}
 
 	if c.tracer != nil {
+		begin := time.Now()
 		c.tracer.Close()
+		log.Infof("stop tracer: duration(%s)", time.Since(begin))
 	}
 }
 

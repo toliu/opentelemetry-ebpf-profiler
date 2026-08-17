@@ -4,9 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/toliu/opentelemetry-ebpf-profiler/internal/controller"
+	"github.com/toliu/opentelemetry-ebpf-profiler/libpf"
 	"github.com/toliu/opentelemetry-ebpf-profiler/reporter"
 	"github.com/toliu/opentelemetry-ebpf-profiler/tracer"
 )
@@ -88,6 +89,7 @@ func (c *Collector) Start(ctx context.Context, cfg StartCfg) error {
 	if err = ctrl.Start(ctx); err != nil {
 		return err
 	}
+	log.Infof("start profiling with config: %+v", controllerCfg)
 	c.ctrl = ctrl
 	c.reporter = rpt
 	c.cfg = controllerCfg

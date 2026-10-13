@@ -1,7 +1,5 @@
 package gpu
 
-import "math"
-
 type usdtTrap string
 
 const apiCorrelation usdtTrap = "api_correlation"
@@ -16,17 +14,24 @@ const kernelTiming usdtTrap = "kernel_timing"
 const apiSynchronize usdtTrap = "api_synchronize"
 const errorTrap usdtTrap = "error"
 
-// Cookie fixme(liushi):根据cookie来动态选择入口的逻辑已从bpf中移除
-func (u usdtTrap) Cookie() uint64 {
+// specID is the fixed per-probe id forming the low 32 bits of the
+// __bpf_usdt_specs map key (u64 pid<<32|spec_id). It must match the SPEC_ID_*
+// constants in cuda.ebpf.c and must be non-zero (0 means "no spec" in BPF).
+func (u usdtTrap) specID() uint32 {
 	switch u {
 	case apiCorrelation:
-		return 0
-	case hostTiming:
 		return 1
-	case kernelTiming:
+	case apiSynchronize:
 		return 2
+	case hostTiming:
+		return 3
+	case kernelTiming:
+		return 4
+	case errorTrap:
+		return 5
 	default:
-		return math.MaxUint64
+		return 0
 	}
 }
+
 func (u usdtTrap) String() string { return string(u) }

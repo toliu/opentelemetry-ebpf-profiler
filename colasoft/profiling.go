@@ -16,7 +16,6 @@ import (
 	"go.opentelemetry.io/ebpf-profiler/tracehandler"
 	"go.opentelemetry.io/ebpf-profiler/tracer"
 	tracertypes "go.opentelemetry.io/ebpf-profiler/tracer/types"
-	"go.opentelemetry.io/ebpf-profiler/util"
 )
 
 type profiling struct {
@@ -65,9 +64,6 @@ func (p *profiling) start(parent context.Context) error {
 	defer p.reporter.SetOnCPUFreq(0)
 	intervals := times.New(p.reporter.Interval(), time.Second*5, 0)
 	tracers := tracertypes.AllTracers()
-	if !util.HasBpfGetAttachCookie() {
-		tracers.Disable(tracertypes.CUDATracer) // USDT support requires cookies
-	}
 	trc, err := tracer.NewTracer(ctx, &tracer.Config{
 		Reporter:          p.reporter,
 		Intervals:         intervals,

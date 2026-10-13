@@ -131,12 +131,7 @@ func NewExecutableInfoManager(
 		interpreterLoaders = append(interpreterLoaders, dotnet.Loader)
 	}
 	if includeTracers.Has(types.CUDATracer) {
-		// USDT support requires cookies
-		if util.HasBpfGetAttachCookie() {
-			interpreterLoaders = append(interpreterLoaders, gpu.GPU.Loader)
-		} else {
-			log.Warn("CUDA USDT tracing is not supported on this kernel (missing bpf_get_attach_cookie)")
-		}
+		interpreterLoaders = append(interpreterLoaders, gpu.GPU.Loader)
 	}
 
 	interpreterLoaders = append(interpreterLoaders, apmint.Loader)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"syscall"
+	"unsafe"
 
 	"github.com/parca-dev/usdt"
 	log "github.com/sirupsen/logrus"
@@ -50,5 +51,27 @@ func (d *data) Attach(_ interpreter.EbpfHandler, pid libpf.PID, _ libpf.Address,
 		log.Debugf("[gpu] USDT probes attached for %s (dev=%d ino=%d)", d.path, key.DeviceID, key.InodeNum)
 	}
 	le.refs++
-	return &instance{d: d, odfi: key}, nil
+	if err := d.writeSpecs(uint32(pid)); err != nil {
+		return nil, err
+	}
+	return &instance{d: d, odfi: key, pid: pid}, nil
+}
+
+// writeSpecs parses each probe's USDT arguments and stores the resulting spec
+// in __bpf_usdt_specs under key pid<<32|spec_id. It is called for every Attach
+// (not just the first per inode) because the uprobe fires host-wide: each pid
+// that shares the .so inode still needs its own spec entries to resolve
+// arguments keyed by its tgid.
+func (d *data) writeSpecs(pid uint32) error {
+	for trap, probe := range d.probes {
+		spec, err := usdt.ParseUSDTArguments(probe.Arguments)
+		if err != nil {
+			return fmt.Errorf("[gpu] parse USDT args for %s: %w", trap, err)
+		}
+		key := uint64(pid)<<32 | uint64(trap.specID())
+		if err := d.g.usdtSpec.Put(unsafe.Pointer(&key), usdt.SpecToBytes(spec)); err != nil {
+			return fmt.Errorf("[gpu] store spec for %s: %w", trap, err)
+		}
+	}
+	return nil
 }

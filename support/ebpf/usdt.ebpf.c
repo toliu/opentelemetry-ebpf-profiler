@@ -5,12 +5,14 @@
 #include "usdt_defs.h"
 
 #ifndef BPF_USDT_MAX_SPEC_CNT
-  #define BPF_USDT_MAX_SPEC_CNT 256
+  // One spec entry per (pid, trap_id) pair. Key is the u64 pid<<32|trap_id,
+  // so this must hold 5 entries per traced process (see data.go).
+  #define BPF_USDT_MAX_SPEC_CNT 8192
 #endif
 
 bpf_map_def SEC("maps") __bpf_usdt_specs = {
   .type        = BPF_MAP_TYPE_HASH,
-  .key_size    = sizeof(u32),
+  .key_size    = sizeof(u64),
   .value_size  = sizeof(struct bpf_usdt_spec),
   .max_entries = BPF_USDT_MAX_SPEC_CNT,
 };
@@ -39,7 +41,8 @@ int usdt_dummy_probe(UNUSED struct pt_regs *ctx)
 {
   u32 key0 = 0;
   bpf_tail_call(ctx, &usdt_progs, key0);
-  struct bpf_usdt_spec *spec = bpf_map_lookup_elem(&__bpf_usdt_specs, &key0);
+  u64 spec_key = 0;
+  struct bpf_usdt_spec *spec = bpf_map_lookup_elem(&__bpf_usdt_specs, &spec_key);
   (void)spec; // Reference the spec to avoid unused variable warning
   PerCPURecord *record = bpf_map_lookup_elem(&usdt_per_cpu_records, &key0);
   (void)record;

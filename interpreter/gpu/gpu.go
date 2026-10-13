@@ -28,7 +28,6 @@ import (
 
 type (
 	gpuTracer struct {
-		specId   atomic.Uint32
 		usdtSpec *cebpf.Map
 		traps    map[usdtTrap]*cebpf.Program
 		event    *eventTracer
@@ -321,21 +320,15 @@ func (g *gpuTracer) attach(path string, probes map[usdtTrap]usdt.Probe) (*probeE
 		log.Warnf("[gpu] failed to open executable in AttachUSDTProbes %v", err)
 		return nil, err
 	}
-	startSpecID := g.specId.Add(uint32(len(probeSlice))) - uint32(len(probeSlice))
-	specIDs, err := usdt.PopulateSpecMap(g.usdtSpec, probeSlice, startSpecID)
-	if err != nil {
-		return nil, fmt.Errorf("[gpu] failed to populate USDT spec maps: %w", err)
-	}
 	progs := make([]*cebpf.Program, 0, len(traps))
-	cookies := make([]uint64, 0, len(traps))
 	for _, trap := range traps {
-		prog := g.traps[trap]
-		progs = append(progs, prog)
-		cookies = append(cookies, trap.Cookie())
+		progs = append(progs, g.traps[trap])
 	}
 
-	finalCookies := usdt.MergeCookies(specIDs, cookies)
-	pl, err := usdt.AttachUprobes(exe, g.usdtSpec, probeSlice, progs, finalCookies)
+	// Spec entries are written per-pid (key = pid<<32|spec_id) in data.Attach,
+	// so the uprobes here are attached without cookie or a pre-populated spec
+	// map (cookies == nil).
+	pl, err := usdt.AttachUprobes(exe, g.usdtSpec, probeSlice, progs, nil)
 	if err != nil {
 		return nil, err
 	}

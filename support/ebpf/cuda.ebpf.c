@@ -4,6 +4,14 @@
 #include "types.h"
 #include "usdt_args.h"
 
+// Fixed per-probe spec IDs. These form the low 32 bits of the __bpf_usdt_specs
+// map key (u64 pid<<32|spec_id) and must match usdtTrap.specID in trap.go.
+#define SPEC_ID_API_CORRELATION 1
+#define SPEC_ID_API_SYNCHRONIZE 2
+#define SPEC_ID_HOST_TIMING     3
+#define SPEC_ID_KERNEL_TIMING   4
+#define SPEC_ID_ERROR           5
+
 // gpu_target_pids filters CUDA USDT sampling by tgid. The "all pids" sentinel
 // (key 0) means "sample every process"; when it is absent only the listed
 // tgids are sampled.
@@ -22,7 +30,7 @@ static inline __attribute__((__always_inline__)) bool gpu_should_trace_pid(u32 p
 
 // cuda_correlation reads the correlation ID from the USDT probe and records a trace.
 SEC("usdt/colasoft/gpu/api_correlation")
-int BPF_USDT(api_correlation, u32 correlation_id, s32 cbid)
+int BPF_USDT_ID(api_correlation, SPEC_ID_API_CORRELATION, u32 correlation_id, s32 cbid)
 {
   u64 pid_tgid = bpf_get_current_pid_tgid();
   u32 pid      = pid_tgid >> 32;
@@ -42,7 +50,7 @@ int BPF_USDT(api_correlation, u32 correlation_id, s32 cbid)
 
 // probe api_synchronize(u64 start, u64 end, u32 syncKind);
 SEC("usdt/colasoft/gpu/api_synchronize")
-int BPF_USDT(api_synchronize, u64 start, u64 end, u32 syncKind)
+int BPF_USDT_ID(api_synchronize, SPEC_ID_API_SYNCHRONIZE, u64 start, u64 end, u32 syncKind)
 {
   u64 pid_tgid = bpf_get_current_pid_tgid();
   u32 pid      = pid_tgid >> 32;
@@ -69,7 +77,7 @@ bpf_map_def SEC("maps") cuda_error_events = {
 // probe error(s32 code, const char *message, const char *component);
 // Reports error events to user-space via perf_event when component starts with "api-".
 SEC("usdt/colasoft/gpu/error")
-int BPF_USDT(error, s32 code, const char *message, const char *component)
+int BPF_USDT_ID(error, SPEC_ID_ERROR, s32 code, const char *message, const char *component)
 {
   u64 pid_tgid = bpf_get_current_pid_tgid();
   u32 pid      = pid_tgid >> 32;
@@ -181,7 +189,7 @@ bpf_map_def SEC("maps") cuda_timing_events = {
 // }
 
 SEC("usdt/colasoft/gpu/host_timing")
-int BPF_USDT(host_timing, u64 ptrs_base, u32 num_activities)
+int BPF_USDT_ID(host_timing, SPEC_ID_HOST_TIMING, u64 ptrs_base, u32 num_activities)
 {
   u64 pid_tgid                 = bpf_get_current_pid_tgid();
   u32 pid                      = pid_tgid >> 32;
@@ -272,7 +280,7 @@ int BPF_USDT(host_timing, u64 ptrs_base, u32 num_activities)
 }
 
 SEC("usdt/colasoft/gpu/kernel_timing")
-int BPF_USDT(kernel_timing, u64 ptrs_base, u32 num_activities)
+int BPF_USDT_ID(kernel_timing, SPEC_ID_KERNEL_TIMING, u64 ptrs_base, u32 num_activities)
 {
   u64 pid_tgid                 = bpf_get_current_pid_tgid();
   u32 pid                      = pid_tgid >> 32;

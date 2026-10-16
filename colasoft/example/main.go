@@ -455,7 +455,7 @@ func (c *controller) setupHttpMux() {
 	c.mux.HandleFunc("GET /api/errors", c.httpGetErrors)
 }
 
-func newController() *controller {
+func newController(pids ...int) *controller {
 	defaultState := State{
 		Interval:     "5s",
 		CPUOnFreq:    19,
@@ -464,6 +464,9 @@ func newController() *controller {
 		PIDs:         []uint32{uint32(os.Getpid())},
 		GPUHostAPI:   true,
 		GPUKernel:    true,
+	}
+	for _, pid := range pids {
+		defaultState.PIDs = append(defaultState.PIDs, uint32(pid))
 	}
 	ctrl := &controller{
 		mux:      http.NewServeMux(),
@@ -602,12 +605,19 @@ func resolveFuncName(loc pprofile.Location, strTable pcommon.StringSlice, funcTa
 
 func main() {
 	addr := flag.String("addr", ":9090", "HTTP 服务监听地址")
+	pidStr := flag.String("pids", "", "pid list, .e.g 14235,17244,52231")
 	flag.Parse()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), unix.SIGINT, unix.SIGTERM, unix.SIGABRT)
 	defer cancel()
+	var pids []int
+	for _, s := range strings.Split(*pidStr, ",") {
+		if pid, _ := strconv.Atoi(strings.TrimSpace(s)); pid > 0 {
+			pids = append(pids, pid)
+		}
+	}
 
-	ctrl := newController()
+	ctrl := newController(pids...)
 	colasoft.Setup(ctx, ctrl)
 
 	srv := &http.Server{

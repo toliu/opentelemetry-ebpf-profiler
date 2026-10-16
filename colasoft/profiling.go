@@ -49,7 +49,7 @@ func (p *profiling) Start(ctx context.Context) {
 }
 
 func (p *profiling) start(parent context.Context) error {
-	if !p.ctrl.GetProfilingStat(p.actual).Enable() {
+	if p.actual = p.ctrl.GetProfilingStat(p.actual); !p.actual.Enable() {
 		return nil
 	}
 	defer p.actual.reset()

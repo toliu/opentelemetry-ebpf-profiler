@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -33,11 +35,12 @@ type (
 		event    *eventTracer
 		flag     atomic.Uint32
 
-		gpuPids   *cebpf.Map
-		mu        sync.Mutex
-		linked    map[util.OnDiskFileIdentifier]*probeEntry
-		pids      map[uint32]bool
-		threshold uint32
+		gpuPids     *cebpf.Map
+		mu          sync.Mutex
+		linked      map[util.OnDiskFileIdentifier]*probeEntry
+		pids        map[uint32]bool
+		lastScanPid time.Time
+		threshold   uint32
 	}
 
 	probeEntry struct {
@@ -72,17 +75,11 @@ func (g *gpuTracer) Setup(ctx context.Context, progs map[string]*cebpf.Program, 
 	}
 	g.usdtSpec = maps["__bpf_usdt_specs"]
 
-	g.gpuPids = maps["gpu_target_pids"]
-	if g.gpuPids == nil {
+	g.pids = make(map[uint32]bool)
+	if g.gpuPids = maps["gpu_target_pids"]; g.gpuPids == nil {
 		log.Warnf("[gpu] gpu_target_pids map not found, pid filtering disabled")
-	} else {
-		// Default to sampling every process until Switch() narrows it down.
-		allKey := uint32(0)
-		var one uint8 = 1
-		if err := g.gpuPids.Update(unsafe.Pointer(&allKey), unsafe.Pointer(&one), cebpf.UpdateAny); err != nil {
-			log.Warnf("[gpu] failed to set all-pids sentinel: %s", err)
-		}
 	}
+	g.Switch(false, false, thresholdAll, map[uint32]bool{0: true}) // 默认配置
 
 	g.linked = make(map[util.OnDiskFileIdentifier]*probeEntry)
 	traps := []usdtTrap{apiCorrelation, hostTiming, kernelTiming, apiSynchronize, errorTrap}
@@ -162,16 +159,37 @@ func (g *gpuTracer) Switch(host, kernel bool, threshold uint32, pids map[uint32]
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	pidChanged := !maps.Equal(g.pids, pids)
-	g.updatePidsLocked(pids)
+	const thresholdFileName = "parcagpu.threshold"
 
-	switched = threshold != g.threshold
-	if switched || pidChanged {
+	if g.updatePidsLocked(pids) || threshold != g.threshold {
 		for pid := range g.pids {
-			if err := writeThreshold(pid, threshold); err != nil {
-				log.Errorf("[gpu] error writing threshold for pid %d: %v", pid, err)
+			if pid == 0 {
+				continue
+			}
+			dir := fmt.Sprintf("/proc/%d/root/tmp", pid)
+			tmp, err := os.CreateTemp(dir, fmt.Sprintf(".%s.*", thresholdFileName))
+			if err != nil {
+				log.Errorf("[gpu] create temp threshold file: %s", err)
+				continue
+			}
+			name := tmp.Name()
+			if _, err = tmp.WriteString(fmt.Sprintf("%d\n", threshold)); err != nil {
+				_ = tmp.Close()
+				_ = os.Remove(name)
+				log.Errorf("[gpu] write threshold: %s", err)
+				continue
+			}
+			if err = tmp.Close(); err != nil {
+				_ = os.Remove(name)
+				log.Errorf("[gpu] close threshold file: %s", err)
+				continue
+			}
+
+			if err = os.Rename(name, filepath.Join(dir, thresholdFileName)); err != nil {
+				log.Errorf("[gpu] rename threshold file: %s", err)
 			}
 		}
+		switched = g.threshold != threshold
 		g.threshold = threshold
 	}
 	if g.flag.Swap(flag) == flag {
@@ -196,70 +214,69 @@ func (g *gpuTracer) Switch(host, kernel bool, threshold uint32, pids map[uint32]
 	return
 }
 
-// writeThreshold propagates the sampling threshold to one target CUDA process
-// by writing through /proc/<pid>/root/tmp, which lands in that process's own
-// /tmp filesystem (the agent runs with hostPID). A temp file + rename keeps the
-// update atomic so the C++ reader never observes a torn value.
-func writeThreshold(pid, value uint32) error {
-	dir := fmt.Sprintf("/proc/%d/root/tmp", pid)
-	tmp, err := os.CreateTemp(dir, ".parcagpu.threshold.*")
-	if err != nil {
-		return fmt.Errorf("create temp threshold file: %w", err)
-	}
-	name := tmp.Name()
-	defer os.Remove(name)
-	if _, err = tmp.WriteString(fmt.Sprintf("%d\n", value)); err != nil {
-		_ = tmp.Close()
-		return fmt.Errorf("write threshold: %w", err)
-	}
-	if err = tmp.Close(); err != nil {
-		return fmt.Errorf("close threshold file: %w", err)
-	}
-
-	// thresholdFileName is the filename the C++ library polls inside its own /tmp
-	// (mirrors kThresholdPath in vendoring/parcagpu/src/cupti.cpp).
-	const thresholdFileName = "parcagpu.threshold"
-	if err = os.Rename(name, filepath.Join(dir, thresholdFileName)); err != nil {
-		return fmt.Errorf("rename threshold file: %w", err)
-	}
-	return nil
-}
-
-func (g *gpuTracer) updatePidsLocked(pids map[uint32]bool) {
-	if g.gpuPids == nil || maps.Equal(g.pids, pids) {
+func (g *gpuTracer) updatePidsLocked(pids map[uint32]bool) (added bool) {
+	if g.gpuPids == nil {
 		return
 	}
-
-	var one uint8 = 1
-	allKey := uint32(0)
-
+	anyPidKey, one := uint32(0), uint8(1)
+	if pids[anyPidKey] {
+		maps.Copy(pids, g.scanProcfs())
+	}
 	// Remove tgids that were selected before but are no longer.
-	for pid := range g.pids {
-		if !pids[pid] {
-			if err := g.gpuPids.Delete(unsafe.Pointer(&pid)); err != nil && !errors.Is(err, cebpf.ErrKeyNotExist) {
-				log.Errorf("[gpu] error removing pid %d: %s", pid, err)
-			}
+	for _, pid := range slices.Collect(maps.Keys(g.pids)) {
+		if pids[pid] {
+			continue
+		}
+		if err := g.gpuPids.Delete(unsafe.Pointer(&pid)); err != nil && !errors.Is(err, cebpf.ErrKeyNotExist) {
+			log.Errorf("[gpu] error removing pid %d: %s", pid, err)
+		} else {
+			delete(g.pids, pid)
 		}
 	}
 	// Add newly selected tgids.
 	for pid := range pids {
-		if !g.pids[pid] {
-			if err := g.gpuPids.Update(unsafe.Pointer(&pid), unsafe.Pointer(&one), cebpf.UpdateAny); err != nil {
-				log.Errorf("[gpu] error adding pid %d: %s", pid, err)
-			}
+		if g.pids[pid] {
+			continue
+		}
+		if err := g.gpuPids.Update(unsafe.Pointer(&pid), unsafe.Pointer(&one), cebpf.UpdateAny); err != nil {
+			log.Errorf("[gpu] error adding pid %d: %s", pid, err)
+		} else {
+			g.pids[pid] = true
+			added = true
 		}
 	}
+	return
+}
 
-	// Maintain the "all pids" sentinel: empty selection means sample everything.
-	if len(pids) == 0 {
-		if err := g.gpuPids.Update(unsafe.Pointer(&allKey), unsafe.Pointer(&one), cebpf.UpdateAny); err != nil {
-			log.Errorf("[gpu] error setting all-pids sentinel: %s", err)
-		}
-	} else if err := g.gpuPids.Delete(unsafe.Pointer(&allKey)); err != nil && !errors.Is(err, cebpf.ErrKeyNotExist) {
-		log.Errorf("[gpu] error removing all-pids sentinel: %s", err)
+func (g *gpuTracer) scanProcfs() map[uint32]bool {
+	if time.Since(g.lastScanPid) < time.Second*5 {
+		return g.pids
 	}
-
-	g.pids = maps.Clone(pids)
+	const procfsPath = `/proc`
+	const libcolacupti = `libcolacupti.so`
+	const libcolamspti = `libcolamspti.so`
+	entries, err := os.ReadDir(procfsPath)
+	if err != nil {
+		log.Errorf("[gpu] error reading %s: %s", procfsPath, err)
+		return g.pids
+	}
+	pids := make(map[uint32]bool)
+	for _, entry := range entries {
+		var pid int
+		if pid, err = strconv.Atoi(entry.Name()); err != nil {
+			continue
+		}
+		procMapsPath := filepath.Join(procfsPath, entry.Name(), "maps")
+		content, _ := os.ReadFile(procMapsPath)
+		if len(content) == 0 {
+			continue
+		}
+		if strings.Contains(string(content), libcolacupti) || strings.Contains(string(content), libcolamspti) {
+			pids[uint32(pid)] = true
+		}
+	}
+	g.lastScanPid = time.Now()
+	return pids
 }
 
 func (g *gpuTracer) MonitorPids(keys *[]uint32, known func(uint32) bool) {
@@ -267,7 +284,7 @@ func (g *gpuTracer) MonitorPids(keys *[]uint32, known func(uint32) bool) {
 	pids := maps.Clone(g.pids)
 	g.mu.Unlock()
 	for pid := range pids {
-		if !known(pid) {
+		if pid != 0 && !known(pid) {
 			*keys = append(*keys, pid)
 		}
 	}

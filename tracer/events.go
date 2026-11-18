@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"sync"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -155,9 +156,20 @@ func (t *Tracer) startTraceEventMonitor(ctx context.Context,
 	eventReader.SetDeadline(time.Unix(1, 0))
 
 	var lostEventsCount, readErrorCount, noDataCount atomic.Uint64
-	var oldKTime, minKTime times.KTime
+
+	// oldKTime 仅在下面的 30s goroutine 中访问，无需同步。
+	var oldKTime times.KTime
+
+	// minKTime 由 poll goroutine 写入、30s goroutine 读取并清零，需互斥保护。
+	var minKTimeMu sync.Mutex
+	var minKTime times.KTime
+
+	// 所有发送方退出后，由独立 goroutine 关闭 traceOutChan。
+	var wg sync.WaitGroup
+	wg.Add(2)
 
 	go func() {
+		defer wg.Done()
 		existTicker := time.NewTicker(30 * time.Second)
 		defer existTicker.Stop()
 		for {
@@ -167,27 +179,36 @@ func (t *Tracer) startTraceEventMonitor(ctx context.Context,
 			case <-ctx.Done():
 				return
 			}
+			// 原子地取走并清零 minKTime，避免与 poll goroutine 产生数据竞态。
+			minKTimeMu.Lock()
+			curMin := minKTime
+			minKTime = 0
+			minKTimeMu.Unlock()
+
 			if oldKTime > 0 {
 				// Ensure that all previously sent trace events have been processed
-				traceOutChan <- nil
+				select {
+				case traceOutChan <- nil:
+				case <-ctx.Done():
+					return
+				}
 
-				if minKTime > 0 && minKTime <= oldKTime {
-					// If minKTime is smaller than oldKTime, use it and reset it
+				if curMin > 0 && curMin <= oldKTime {
+					// If curMin is smaller than oldKTime, use it and reset it
 					// to avoid a repeat during next iteration.
-					t.TraceProcessor().ProcessedUntil(minKTime)
-					minKTime = 0
+					t.TraceProcessor().ProcessedUntil(curMin)
+					curMin = 0
 				} else {
 					t.TraceProcessor().ProcessedUntil(oldKTime)
 				}
 			}
-			oldKTime = minKTime
-			minKTime = 0
+			oldKTime = curMin
 		}
 	}()
 
 	go func() {
+		defer wg.Done()
 		var data perf.Record
-		//var oldKTime, minKTime times.KTime
 
 		pollTicker := time.NewTicker(t.intervals.TracePollInterval())
 		defer pollTicker.Stop()
@@ -198,8 +219,6 @@ func (t *Tracer) startTraceEventMonitor(ctx context.Context,
 			case <-pollTicker.C:
 				// Continue execution below.
 			case <-ctx.Done():
-				// 退出时关闭traceOutChan
-				close(traceOutChan)
 				break PollLoop
 			}
 
@@ -223,11 +242,17 @@ func (t *Tracer) startTraceEventMonitor(ctx context.Context,
 
 				// Keep track of min KTime seen in this batch processing loop
 				trace := t.loadBpfTrace(data.RawSample, data.CPU)
+				minKTimeMu.Lock()
 				if minKTime == 0 || trace.KTime < minKTime {
 					minKTime = trace.KTime
 				}
+				minKTimeMu.Unlock()
 				// 这个修改是避免这里阻塞导致泄漏
-				traceOutChan <- trace
+				select {
+				case traceOutChan <- trace:
+				case <-ctx.Done():
+					break PollLoop
+				}
 			}
 			// After we've received and processed all trace events, call
 			// ProcessedUntil if there is a pending oldKTime that we
@@ -264,6 +289,13 @@ func (t *Tracer) startTraceEventMonitor(ctx context.Context,
 			//}
 			//oldKTime = minKTime
 		}
+	}()
+
+	// 所有发送方退出后再关闭 channel，通知接收方退出。
+	// 多发送方场景下不能在某个发送方内部 close，否则会 send on closed channel。
+	go func() {
+		wg.Wait()
+		close(traceOutChan)
 	}()
 
 	return func() []metrics.Metric {

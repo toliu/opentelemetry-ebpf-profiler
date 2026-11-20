@@ -66,7 +66,7 @@ typedef enum {
   /* memcpy-specific fields (zero/ignored for non-memcpy events) */                                \
   u32 tid; /* thread ID that initiated this memcpy */                                              \
   u64 bytes;                                                                                       \
-  u16 copyKind; /* CUpti_ActivityMemcpyKind: H2D=1, D2H=2, D2D=8, P2P=10 */                        \
+  u16 copyKind; /* vendor-neutral copy kind: H2D=100, D2H=101, D2D=102, P2P=103 */                 \
   u16 sync;     /* 1=synchronous, 0=asynchronous */                                                \
                                                                                                    \
   /* kernel */                                                                                     \

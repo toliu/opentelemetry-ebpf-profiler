@@ -92,10 +92,12 @@ func (s *State) Enable() bool {
 }
 func (s *State) reset() {
 	s.running, s.interval, s.Error = false, 0, nil
-
-	s.WithCPUState(0, 0, make(PIDState))
-	s.WithMemoryState(0, make(map[libpf.InterpreterType]bool), make(PIDState))
-	s.WithAcceleratorState(false, false, 0, make(PIDState))
+	// 直接零值化，不能用 WithXXXState(0, ...)：那些 helper 在对应维度
+	// Enable()==false 时会跳过 PIDs 克隆，导致 PIDs 残留旧值，进而使
+	// start() 进入主循环后第一次 Compare 得不到 add/remove。
+	s.CPU = CPUState{}
+	s.Memory = MemoryState{Disable: make(map[libpf.InterpreterType]bool)}
+	s.Accelerator = AcceleratorState{}
 }
 
 func (c CPUState) Enable() bool         { return c.OnFrequency > 0 || c.OffThreshold > 0 }

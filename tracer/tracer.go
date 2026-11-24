@@ -346,7 +346,7 @@ func NewTracer(ctx context.Context, cfg *Config) (*Tracer, error) {
 		samplesPerSecond:       cfg.SamplesPerSecond,
 		probabilisticInterval:  cfg.ProbabilisticInterval,
 		probabilisticThreshold: cfg.ProbabilisticThreshold,
-		memoryTracer:           memory.NewMemoryTracer(processManager, cfg.Reporter, loader.Programs()),
+		memoryTracer:           memory.NewMemoryTracer(processManager, cfg.Reporter, loader.Programs(), loader.Maps()),
 	}, nil
 }
 

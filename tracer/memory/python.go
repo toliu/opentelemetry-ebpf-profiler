@@ -15,7 +15,7 @@ type pythonInterpreter struct {
 
 var _ memoryInterpreter = (*pythonInterpreter)(nil)
 
-func newPythonInterpreter(filename string, pid uint32, progs map[string]*cebpf.Program) (memoryInterpreter, error) {
+func newPythonInterpreter(filename string, progs map[string]*cebpf.Program) (memoryInterpreter, error) {
 	exe, err := link.OpenExecutable(filename)
 	if err != nil {
 		return nil, err
@@ -26,7 +26,6 @@ func newPythonInterpreter(filename string, pid uint32, progs map[string]*cebpf.P
 		`PyObject_Realloc`: {`PyObject_Realloc_enter`, `PyObject_Realloc_exit`},
 		`PyObject_Free`:    {`PyObject_Free_enter`, ``},
 	}
-	opt := &link.UprobeOptions{PID: int(pid)}
 	pi := &pythonInterpreter{}
 	defer func() {
 		if err != nil {
@@ -35,14 +34,14 @@ func newPythonInterpreter(filename string, pid uint32, progs map[string]*cebpf.P
 	}()
 	for symbol, pname := range attach {
 		var uprobe, uretprobe link.Link
-		if uprobe, err = exe.Uprobe(symbol, progs[pname[0]], opt); err != nil {
+		if uprobe, err = exe.Uprobe(symbol, progs[pname[0]], nil); err != nil {
 			return nil, err
 		}
 		pi.links = append(pi.links, uprobe)
 		if len(pname[1]) == 0 {
 			continue
 		}
-		if uretprobe, err = exe.Uretprobe(symbol, progs[pname[1]], opt); err != nil {
+		if uretprobe, err = exe.Uretprobe(symbol, progs[pname[1]], nil); err != nil {
 			return nil, err
 		}
 		pi.links = append(pi.links, uretprobe)

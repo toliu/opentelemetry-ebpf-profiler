@@ -18,7 +18,7 @@ type golangInterpreter struct {
 
 var _ memoryInterpreter = (*golangInterpreter)(nil)
 
-func newGolangInterpreter(filename string, pid uint32, progs map[string]*cebpf.Program) (memoryInterpreter, error) {
+func newGolangInterpreter(filename string, progs map[string]*cebpf.Program) (memoryInterpreter, error) {
 	bi, err := buildinfo.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -51,8 +51,7 @@ func newGolangInterpreter(filename string, pid uint32, progs map[string]*cebpf.P
 	if (runtime.GOARCH == "amd64" && minor < 17) || (runtime.GOARCH == "arm64" && minor < 18) {
 		prog = "mallocgc_stack_enter"
 	}
-	opt := &link.UprobeOptions{PID: int(pid)}
-	lnk, err := exe.Uprobe(`runtime.mallocgc`, progs[prog], opt)
+	lnk, err := exe.Uprobe(`runtime.mallocgc`, progs[prog], nil)
 	if err != nil {
 		return nil, err
 	}

@@ -116,15 +116,34 @@ typedef struct {
   u64 mem_allocs;
 } combined_alloc_info_t;
 
-bpf_map_def SEC("maps") size_record = {
+// mem_target_pids filters heap profiling by tgid. Memory uprobes are now
+// attached per file (inode) instead of per pid, so the kernel side decides here
+// whether the current process should be profiled. Only a tgid present in this
+// map is traced.
+bpf_map_def SEC("maps") mem_target_pids = {
   .type        = BPF_MAP_TYPE_HASH,
+  .key_size    = sizeof(u32),
+  .value_size  = sizeof(u8),
+  .max_entries = 10000,
+};
+
+static inline __attribute__((__always_inline__)) bool mem_should_trace_pid(u32 pid)
+{
+  return bpf_map_lookup_elem(&mem_target_pids, &pid);
+}
+
+bpf_map_def SEC("maps") size_record = {
+  .type        = BPF_MAP_TYPE_LRU_HASH,
   .key_size    = sizeof(u64),
   .value_size  = sizeof(u64),
   .max_entries = 1000000,
 };
 
+// 按分配地址记录大小供 free 侧关联。改为 LRU 以限制常驻内存：并发存活分配数
+// 超过 max_entries 时，长生命周期分配的记录会被回收，其 free 将找不到记录而不
+// 上报事件，reporter 侧的存活内存计数会向上漂移。这是有意的取舍。
 bpf_map_def SEC("maps") alloc_infos = {
-  .type        = BPF_MAP_TYPE_HASH,
+  .type        = BPF_MAP_TYPE_LRU_HASH,
   .key_size    = sizeof(u64),
   .value_size  = sizeof(size_t),
   .max_entries = 1000000,
@@ -138,7 +157,7 @@ bpf_map_def SEC("maps") thread_alloc_size = {
 };
 
 bpf_map_def SEC("maps") memptrs = {
-  .type        = BPF_MAP_TYPE_HASH,
+  .type        = BPF_MAP_TYPE_LRU_HASH,
   .key_size    = sizeof(u32),
   .value_size  = sizeof(u64),
   .max_entries = 1000000,
@@ -147,7 +166,10 @@ bpf_map_def SEC("maps") memptrs = {
 static inline __attribute__((__always_inline__)) int
 alloc_enter(struct pt_regs *ctx, size_t size, u32 type_index)
 {
-  u32 tid              = bpf_get_current_pid_tgid();
+  u64 id               = bpf_get_current_pid_tgid();
+  u32 tid              = id & 0xFFFFFFFF;
+  if (!mem_should_trace_pid(id >> 32))
+    return 0;
   u32 key0             = 0;
   SystemConfig *memcfg = bpf_map_lookup_elem(&system_config, &key0);
   if (!memcfg || !memcfg->mem_profile_threshold)
@@ -173,6 +195,8 @@ static inline __attribute__((__always_inline__)) u64
 alloc_exit2(struct pt_regs *ctx, u64 address, u32 type_index)
 {
   u64 id      = bpf_get_current_pid_tgid();
+  if (!mem_should_trace_pid(id >> 32))
+    return 0;
   u32 tid     = id & 0xFFFFFFFF;
   u64 key     = (u64)type_index << 32 | tid;
   u64 *size64 = bpf_map_lookup_elem(&size_record, &key);
@@ -198,13 +222,15 @@ static inline __attribute__((__always_inline__)) int alloc_exit(struct pt_regs *
 
 static inline __attribute__((__always_inline__)) u64 free_entry(struct pt_regs *ctx, void *address)
 {
-  u64 addr  = (u64)address;
+  u64 id = bpf_get_current_pid_tgid();
+  if (!mem_should_trace_pid(id >> 32))
+    return 0;
+  u32 pid  = id >> 32;
+  u32 tid  = id & 0xFFFFFFFF;
+  u64 addr = (u64)address;
   size_t *s = bpf_map_lookup_elem(&alloc_infos, &addr);
   if (!s)
     return 0;
-  u64 id  = bpf_get_current_pid_tgid();
-  u32 pid = id >> 32;
-  u32 tid = id & 0xFFFFFFFF;
   bpf_map_delete_elem(&alloc_infos, &addr);
   u64 ts = bpf_ktime_get_ns();
   return collect_trace(ctx, TRACE_HEAP_ALLOC, pid, tid, ts, 0, *s, addr, 0);
@@ -278,11 +304,14 @@ int munmap_enter(struct pt_regs *ctx)
 SEC("uprobe/posix_memalign")
 int posix_memalign_enter(struct pt_regs *ctx)
 {
+  u64 id = bpf_get_current_pid_tgid();
+  if (!mem_should_trace_pid(id >> 32))
+    return 0;
   void **memptr = (void **)PT_REGS_PARM1(ctx);
   size_t size   = (size_t)PT_REGS_PARM3(ctx);
 
   u64 memptr64 = (u64)(size_t)memptr;
-  u32 tid      = bpf_get_current_pid_tgid();
+  u32 tid      = id & 0xFFFFFFFF;
   bpf_map_update_elem(&memptrs, &tid, &memptr64, BPF_ANY);
   return alloc_enter(ctx, size, POSIX_MEMALIGN);
 }
@@ -364,6 +393,8 @@ int mallocgc_register_enter(struct pt_regs *ctx)
   u64 id               = bpf_get_current_pid_tgid();
   u32 tid              = id & 0xFFFFFFFF;
   u32 pid              = id >> 32;
+  if (!mem_should_trace_pid(pid))
+    return 0;
   u64 ts               = bpf_ktime_get_ns();
   u32 key0             = 0;
   SystemConfig *memcfg = bpf_map_lookup_elem(&system_config, &key0);
@@ -386,14 +417,16 @@ int mallocgc_register_enter(struct pt_regs *ctx)
 SEC("uprobe/mallocgc_stack")
 int mallocgc_stack_enter(struct pt_regs *ctx)
 {
+  u64 id               = bpf_get_current_pid_tgid();
+  u32 tid              = id & 0xFFFFFFFF;
+  u32 pid              = id >> 32;
+  if (!mem_should_trace_pid(pid))
+    return 0;
   u64 size;
   // get first arm from stack
   if (bpf_probe_read_user(&size, sizeof(u64), (void *)((ctx->sp) + 8))) {
     return 0;
   }
-  u64 id               = bpf_get_current_pid_tgid();
-  u32 tid              = id & 0xFFFFFFFF;
-  u32 pid              = id >> 32;
   u64 ts               = bpf_ktime_get_ns();
   u32 key0             = 0;
   SystemConfig *memcfg = bpf_map_lookup_elem(&system_config, &key0);

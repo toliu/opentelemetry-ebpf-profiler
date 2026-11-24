@@ -15,7 +15,7 @@ type cLikeInterpreter struct {
 
 var _ memoryInterpreter = (*cLikeInterpreter)(nil)
 
-func newCLikeInterpreter(filename string, pid uint32, progs map[string]*cebpf.Program) (memoryInterpreter, error) {
+func newCLikeInterpreter(filename string, progs map[string]*cebpf.Program) (memoryInterpreter, error) {
 	type entrypoint struct {
 		symbol      string
 		enter, exit string
@@ -45,10 +45,9 @@ func newCLikeInterpreter(filename string, pid uint32, progs map[string]*cebpf.Pr
 			_ = clink.Close()
 		}
 	}()
-	opt := &link.UprobeOptions{PID: int(pid)}
 	for _, entry := range entries {
 		var enter, exit link.Link
-		if enter, err = exe.Uprobe(entry.symbol, progs[entry.enter], opt); err != nil {
+		if enter, err = exe.Uprobe(entry.symbol, progs[entry.enter], nil); err != nil {
 			if !entry.mayFail {
 				return nil, err
 			}
@@ -60,7 +59,7 @@ func newCLikeInterpreter(filename string, pid uint32, progs map[string]*cebpf.Pr
 		if entry.exit == "" {
 			continue
 		}
-		if exit, err = exe.Uretprobe(entry.symbol, progs[entry.exit], opt); err != nil {
+		if exit, err = exe.Uretprobe(entry.symbol, progs[entry.exit], nil); err != nil {
 			if !entry.mayFail {
 				return nil, err
 			}
